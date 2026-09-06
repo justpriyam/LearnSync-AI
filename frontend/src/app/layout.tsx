@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Nexum Hero',
-  description: 'Ship AI workers that grind while you rest',
+  title: 'LearnSync AI',
+  description: 'AI-powered course engine, sprint planner & mock interview mentor',
 };
 
 export default function RootLayout({

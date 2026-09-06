@@ -8,7 +8,7 @@ import UploadZone from "@/components/UploadZone";
 import ProcessingStatus from "@/components/ProcessingStatus";
 import DocumentCard from "@/components/DocumentCard";
 
-export default function DashboardPage() {
+export default function CoursesPage() {
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
