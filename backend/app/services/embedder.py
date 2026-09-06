@@ -6,7 +6,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-client = chromadb.PersistentClient(path=".chroma_data")
+client = chromadb.PersistentClient(path=settings.CHROMA_DATA_DIR)
 
 def get_or_create_collection(document_id: str) -> chromadb.Collection:
     collection_name = f"{settings.CHROMA_COLLECTION_PREFIX}{document_id}"

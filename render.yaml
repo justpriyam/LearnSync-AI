@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: learnsync-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /docs
+    disk:
+      name: learnsync-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:////var/data/learnsync.db
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: CHROMA_DATA_DIR
+        value: /var/data/chroma
+      - key: CORS_ORIGINS
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

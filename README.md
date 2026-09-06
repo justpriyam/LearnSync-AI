@@ -184,6 +184,18 @@ npm run dev
 
 ---
 
+## Production Deployment
+
+Deploy the frontend and backend as separate services:
+
+1. **Backend on Render:** create a new Blueprint from this repository. Render will use [`render.yaml`](render.yaml), install `backend/requirements.txt`, and start FastAPI on the assigned port. Add `GROQ_API_KEY`, `GEMINI_API_KEY`, and set `CORS_ORIGINS` to the deployed Vercel URL, such as `https://learnsync-ai.vercel.app`.
+2. **Frontend on Vercel:** import the repository with `frontend` as the **Root Directory** and select the Next.js preset. Add `NEXT_PUBLIC_API_URL` with the public Render backend URL, such as `https://learnsync-api.onrender.com`.
+3. Keep the Render persistent disk enabled. SQLite, uploaded files, and ChromaDB are stored under `/var/data`; removing the disk removes those records and files.
+
+The frontend cannot be deployed from the repository root because the root has no `package.json`. The backend should not be deployed as a normal Vercel Next.js project because it requires persistent storage and background processing.
+
+---
+
 ## Testing
 
 ```bash
@@ -249,6 +261,8 @@ All settings are environment-driven via `backend/.env`. See [`.env.example`](bac
 | `MAX_INTERVIEW_TURNS` | `10` | Questions per interview session |
 | `DIFFICULTY_ESCALATION_THRESHOLD` | `4` | Score to trigger harder questions |
 | `DIFFICULTY_PIVOT_THRESHOLD` | `2` | Score to trigger easier questions |
+| `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated frontend origins allowed by the API |
+| `CHROMA_DATA_DIR` | `.chroma_data` | Persistent ChromaDB directory |
 
 ---
 

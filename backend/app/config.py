@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     UPLOAD_DIR: str = "./uploads"
+    CHROMA_DATA_DIR: str = ".chroma_data"
+    CORS_ORIGINS: str = "http://localhost:3000"
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
