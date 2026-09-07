@@ -10,8 +10,16 @@ import {
   InterviewReportResponse
 } from "./types";
 
-// Normalize API_BASE by removing any accidental trailing slashes
-const RAW_API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Normalize API_BASE by removing any accidental trailing slashes. A deployed
+// browser cannot reach localhost, so use the public Render API when no build
+// environment variable was supplied.
+const localHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const isLocalBrowser =
+  typeof window !== "undefined" && localHosts.has(window.location.hostname);
+const defaultApiBase = isLocalBrowser
+  ? "http://localhost:8000"
+  : "https://learnsync-api.onrender.com";
+const RAW_API_BASE = process.env.NEXT_PUBLIC_API_URL || defaultApiBase;
 export const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
 
 const DEFAULT_TIMEOUT_MS = 90000; // 90s timeout to allow Render free tier cold-start waking
