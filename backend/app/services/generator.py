@@ -88,7 +88,7 @@ def call_groq(
     raise RuntimeError("Groq call failed")
 
 def generate_module_outline(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Pass 1 (Gemini): Analyze all chunks and propose a module structure."""
+    """Pass 1 (Gemini with Groq fallback): Analyze all chunks and propose a module structure."""
     chunk_summaries = "\n".join(
         f"[{c['id']}]: {c['text'][:200]}..." if len(c["text"]) > 200 else f"[{c['id']}]: {c['text']}"
         for c in chunks
@@ -99,7 +99,7 @@ def generate_module_outline(chunks: list[dict[str, Any]]) -> list[dict[str, Any]
 IMPORTANT RULES:
 - Base your outline ONLY on the content in the chunks below. Do not add topics not present in the source material.
 - Each module should cover a coherent topic area from the document.
-- Assign each chunk to exactly one module (use the chunk IDs provided).
+- Assign 2 to 5 representative chunk IDs to each module.
 - Create between 3 and 8 modules depending on the document's scope.
 
 CHUNKS:
@@ -115,36 +115,60 @@ Respond with ONLY a valid JSON array (no markdown, no explanation) in this forma
 ]"""
 
     logger.info("Pass 1: Generating module outline via Gemini...")
-    raw_response = call_gemini(prompt, json_mode=True)
+    for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
+        try:
+            raw_response = call_gemini(prompt, json_mode=True)
+            json_str = raw_response.strip()
+            if json_str.startswith("```"):
+                lines = json_str.split("\n")
+                json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            else:
+                start_idx = json_str.find("[")
+                end_idx = json_str.rfind("]")
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = json_str[start_idx : end_idx + 1]
 
-    json_str = raw_response.strip()
-    if json_str.startswith("```"):
-        lines = json_str.split("\n")
-        json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-    else:
-        start_idx = json_str.find("[")
-        end_idx = json_str.rfind("]")
-        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-            json_str = json_str[start_idx : end_idx + 1]
+            modules = json.loads(json_str)
+            if isinstance(modules, list) and len(modules) > 0:
+                logger.info(f"Pass 1 complete: {len(modules)} modules proposed via Gemini")
+                return modules
+        except Exception as e:
+            logger.warning(f"Pass 1 Gemini attempt {attempt}/{settings.MAX_LLM_RETRIES} failed: {e}")
+            if attempt < settings.MAX_LLM_RETRIES:
+                time.sleep(settings.LLM_RETRY_DELAY_SECONDS * attempt)
 
-    try:
-        modules = json.loads(json_str)
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse Gemini response as JSON: {e}\nRaw response:\n{raw_response}")
-        raise RuntimeError("Gemini returned invalid JSON for module outline") from e
+    # Fallback to Groq if Gemini fails or returns truncated JSON
+    logger.info("Pass 1: Falling back to Groq for module outline...")
+    for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
+        try:
+            raw_response = call_groq(prompt, json_mode=True)
+            json_str = raw_response.strip()
+            if json_str.startswith("```"):
+                lines = json_str.split("\n")
+                json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            else:
+                start_idx = json_str.find("[")
+                end_idx = json_str.rfind("]")
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = json_str[start_idx : end_idx + 1]
 
-    if not isinstance(modules, list) or len(modules) == 0:
-        raise RuntimeError(f"Expected a non-empty list of modules, got: {type(modules)}")
+            modules = json.loads(json_str)
+            if isinstance(modules, list) and len(modules) > 0:
+                logger.info(f"Pass 1 complete: {len(modules)} modules proposed via Groq fallback")
+                return modules
+        except Exception as e:
+            logger.warning(f"Pass 1 Groq fallback attempt {attempt}/{settings.MAX_LLM_RETRIES} failed: {e}")
+            if attempt < settings.MAX_LLM_RETRIES:
+                time.sleep(settings.LLM_RETRY_DELAY_SECONDS * attempt)
 
-    logger.info(f"Pass 1 complete: {len(modules)} modules proposed")
-    return modules
+    raise RuntimeError("Failed to generate valid module outline with both Gemini and Groq")
 
 def generate_quiz_and_cheatsheet(
     module_title: str,
     module_summary: str,
     chunks: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Pass 2 (Groq): Generate quiz questions and cheat sheet bullets for one module."""
+    """Pass 2 (Groq with Gemini fallback): Generate quiz questions and cheat sheet bullets for one module."""
     chunk_context = "\n\n".join(f"[{c['id']}]:\n{c['text']}" for c in chunks)
 
     prompt = f"""Generate a quiz and cheat sheet for the following module.
@@ -177,22 +201,48 @@ Respond with ONLY valid JSON in this exact format:
   }}
 }}"""
 
-    raw_response = call_groq(prompt, json_mode=True)
+    for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
+        try:
+            raw_response = call_groq(prompt, json_mode=True)
+            json_str = raw_response.strip()
+            if json_str.startswith("```"):
+                lines = json_str.split("\n")
+                json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            else:
+                start_idx = json_str.find("{")
+                end_idx = json_str.rfind("}")
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = json_str[start_idx : end_idx + 1]
 
-    json_str = raw_response.strip()
-    if json_str.startswith("```"):
-        lines = json_str.split("\n")
-        json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-    else:
-        start_idx = json_str.find("{")
-        end_idx = json_str.rfind("}")
-        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-            json_str = json_str[start_idx : end_idx + 1]
+            result = json.loads(json_str)
+            if isinstance(result, dict) and "quiz" in result:
+                return result
+        except Exception as e:
+            logger.warning(f"Pass 2 Groq attempt {attempt}/{settings.MAX_LLM_RETRIES} failed for '{module_title}': {e}")
+            if attempt < settings.MAX_LLM_RETRIES:
+                time.sleep(settings.LLM_RETRY_DELAY_SECONDS * attempt)
 
-    try:
-        result = json.loads(json_str)
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse Groq response for module '{module_title}': {e}\nRaw response:\n{raw_response}")
-        raise RuntimeError(f"Groq returned invalid JSON for module '{module_title}'") from e
+    # Fallback to Gemini if Groq fails
+    logger.info(f"Pass 2: Falling back to Gemini for module '{module_title}'...")
+    for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
+        try:
+            raw_response = call_gemini(prompt, json_mode=True)
+            json_str = raw_response.strip()
+            if json_str.startswith("```"):
+                lines = json_str.split("\n")
+                json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            else:
+                start_idx = json_str.find("{")
+                end_idx = json_str.rfind("}")
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = json_str[start_idx : end_idx + 1]
 
-    return result
+            result = json.loads(json_str)
+            if isinstance(result, dict) and "quiz" in result:
+                return result
+        except Exception as e:
+            logger.warning(f"Pass 2 Gemini fallback attempt {attempt}/{settings.MAX_LLM_RETRIES} failed: {e}")
+            if attempt < settings.MAX_LLM_RETRIES:
+                time.sleep(settings.LLM_RETRY_DELAY_SECONDS * attempt)
+
+    raise RuntimeError(f"Failed to generate quiz and cheatsheet for module '{module_title}' with both Groq and Gemini")
