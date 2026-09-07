@@ -135,10 +135,10 @@ def embed_chunks(chunks: list[dict[str, Any]]) -> chromadb.Collection:
     # Delete collection if it exists from a previous run
     try:
         client.delete_collection(config.CHROMA_COLLECTION_NAME)
-    except ValueError:
+    except Exception:
         pass
 
-    collection = client.create_collection(
+    collection = client.get_or_create_collection(
         name=config.CHROMA_COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
     )
