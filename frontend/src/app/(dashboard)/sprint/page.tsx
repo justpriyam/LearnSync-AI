@@ -28,13 +28,11 @@ export default function SprintPage() {
   /* ── sprint planner state ───────────────────────────────────── */
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
-  const [docsError, setDocsError] = useState<string | null>(null);
   const [syllabusDocId, setSyllabusDocId] = useState<string | null>(null);
   const [pyqDocId, setPyqDocId] = useState<string | null>(null);
   const [processingPyqId, setProcessingPyqId] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string>("");
   const [generating, setGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const readyDocuments = useMemo(
     () => documents.filter((d) => d.status === "ready"),
@@ -60,7 +58,6 @@ export default function SprintPage() {
   const fetchDocs = useCallback(async () => {
     try {
       setLoadingDocs(true);
-      setDocsError(null);
       const docs = await listDocuments();
       setDocuments(
         docs.sort(
@@ -68,9 +65,8 @@ export default function SprintPage() {
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )
       );
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to load syllabus documents";
-      setDocsError(message);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoadingDocs(false);
     }
@@ -103,13 +99,12 @@ export default function SprintPage() {
     if (!syllabusDocId || !pyqDocId || !deadline) return;
     try {
       setGenerating(true);
-      setGenerateError(null);
       const res = await generateSprint(syllabusDocId, pyqDocId, deadline);
       router.push(`/sprint/${res.id}`);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to generate sprint";
-      setGenerateError(message);
+      alert(message);
       setGenerating(false);
     }
   };
@@ -310,28 +305,15 @@ export default function SprintPage() {
               )}
             </h3>
             {loadingDocs ? (
-              <div className="flex items-center gap-2 text-gray-500 py-3 text-sm">
-                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <span>Loading your uploaded documents...</span>
-              </div>
-            ) : docsError ? (
-              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-sm space-y-2">
-                <p className="text-red-700 dark:text-red-300 font-medium">{docsError}</p>
-                <button
-                  onClick={fetchDocs}
-                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold"
-                >
-                  Retry Loading
-                </button>
-              </div>
+              <p className="text-gray-500">Loading documents...</p>
             ) : readyDocuments.length === 0 ? (
-              <div className="text-gray-500 text-sm space-y-2">
-                <p>No processed documents ready yet.</p>
+              <div className="text-gray-500">
+                <p>No ready documents found.</p>
                 <Link
                   href="/courses"
-                  className="text-blue-600 underline font-medium hover:text-blue-700 inline-block"
+                  className="text-blue-600 underline hover:text-blue-700 mt-1 inline-block"
                 >
-                  Go to Courses to upload your syllabus PDF →
+                  Go to Courses to upload your syllabus →
                 </Link>
               </div>
             ) : (
@@ -424,12 +406,7 @@ export default function SprintPage() {
           </section>
 
           {/* Step 4 */}
-          <section className="pt-6 space-y-3">
-            {generateError && (
-              <div className="p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl text-red-600 dark:text-red-400 text-sm">
-                <span className="font-semibold">Generation Error:</span> {generateError}
-              </div>
-            )}
+          <section className="pt-6">
             <button
               onClick={handleGenerate}
               disabled={

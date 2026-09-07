@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, use, useRef } from "react";
-import Link from "next/link";
-import { getCourse, generateCourse } from "@/lib/api";
+import React, { useEffect, useState, use } from "react";
+import { getCourse } from "@/lib/api";
 import { CourseResponse } from "@/lib/types";
 import ModuleList from "@/components/ModuleList";
 import QuizView from "@/components/QuizView";
@@ -19,8 +18,6 @@ export default function CoursePage({
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isPolling, setIsPolling] = useState(true);
-  const [isRetrying, setIsRetrying] = useState(false);
-  const failCountRef = useRef(0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -29,7 +26,6 @@ export default function CoursePage({
       try {
         const data = await getCourse(courseId);
         setCourse(data);
-        failCountRef.current = 0; // reset on success
 
         if (data.status === "ready" || data.status === "failed") {
           setIsPolling(false);
@@ -46,15 +42,11 @@ export default function CoursePage({
           }
         }
       } catch (err: unknown) {
-        failCountRef.current += 1;
-        // Allow up to 4 consecutive transient network errors before stopping
-        if (failCountRef.current > 4) {
-          const message =
-            err instanceof Error ? err.message : "Failed to load course details";
-          setError(message);
-          setIsPolling(false);
-          clearInterval(interval);
-        }
+        const message =
+          err instanceof Error ? err.message : "Failed to load course";
+        setError(message);
+        setIsPolling(false);
+        clearInterval(interval);
       }
     };
 
@@ -67,107 +59,37 @@ export default function CoursePage({
     return () => clearInterval(interval);
   }, [courseId, isPolling, selectedModuleId]);
 
-  const handleRetryGeneration = async () => {
-    if (!course?.document_id) return;
-    setIsRetrying(true);
-    setError(null);
-    try {
-      const res = await generateCourse(course.document_id);
-      window.location.href = `/courses/${res.id}`;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to regenerate course";
-      setError(message);
-      setIsRetrying(false);
-    }
-  };
-
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto py-12 px-4 text-center">
-        <div className="p-8 border border-red-200 dark:border-red-900/60 rounded-2xl bg-red-50/80 dark:bg-red-950/30 space-y-4">
-          <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-bold">
-            !
-          </div>
-          <h2 className="text-xl font-bold text-red-900 dark:text-red-200">Unable to Load Course</h2>
-          <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-          <div className="pt-2 flex justify-center gap-4">
-            <button
-              onClick={() => { setError(null); setIsPolling(true); failCountRef.current = 0; }}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              Retry Connection
-            </button>
-            <Link
-              href="/courses"
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium transition-colors"
-            >
-              Back to Courses
-            </Link>
-          </div>
-        </div>
+      <div className="text-red-500 p-8 border border-red-200 rounded-lg bg-red-50">
+        {error}
       </div>
     );
   }
 
   if (!course) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-        <div className="w-10 h-10 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-        <p className="text-sm text-gray-500 animate-pulse">Loading course data...</p>
-      </div>
-    );
-  }
-
-  if (course.status === "failed") {
-    return (
-      <div className="max-w-xl mx-auto py-16 px-4 text-center">
-        <div className="p-8 border border-rose-200 dark:border-rose-900/60 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 space-y-4">
-          <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-xl font-bold">
-            ✕
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Course Generation Failed</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {course.error_message || "The AI model encountered an issue parsing the document structure."}
-          </p>
-          <div className="pt-4 flex justify-center gap-3">
-            <button
-              onClick={handleRetryGeneration}
-              disabled={isRetrying}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl shadow-xs transition-colors"
-            >
-              {isRetrying ? "Starting Generation..." : "Retry Generation"}
-            </button>
-            <Link
-              href="/courses"
-              className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-xl transition-colors"
-            >
-              Back to Documents
-            </Link>
-          </div>
-        </div>
+      <div className="p-8 text-center text-gray-500 animate-pulse">
+        Loading course data...
       </div>
     );
   }
 
   if (course.status !== "ready") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[55vh] space-y-6 px-4 text-center">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-900 border-t-blue-600 rounded-full animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-blue-600">
-            AI
-          </div>
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Generating Your Course</h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto mt-2 leading-relaxed">
-            LearnSync AI is reading the document, creating structured learning modules, generating practice quizzes, and compiling key cheat sheets.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-full text-xs font-semibold text-blue-700 dark:text-blue-300">
-          <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
-          Status: {course.status} • Polling live updates
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-6">
+        <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+        <h2 className="text-2xl font-bold">Generating Course</h2>
+        <p className="text-gray-500 max-w-md text-center">
+          LearnSync AI is analyzing your document and generating modules,
+          quizzes, and cheat sheets. This might take a minute or two.
+        </p>
+        <p className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded">
+          Status: {course.status}
+        </p>
+        {course.error_message && (
+          <p className="text-red-500 text-sm">{course.error_message}</p>
+        )}
       </div>
     );
   }
@@ -179,43 +101,15 @@ export default function CoursePage({
     sortedModules.find((m) => m.id === selectedModuleId) || sortedModules[0];
 
   return (
-    <div className="space-y-8">
-      {/* Header with Course Title & Cheat Sheet Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-200 dark:border-gray-800">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">
-            <Link href="/courses" className="hover:underline">Courses</Link>
-            <span>/</span>
-            <span>Course Engine</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            {course.title}
-          </h1>
-          <p className="text-xs text-gray-500 mt-1">
-            {course.modules.length} Modules Generated • Ready for Study
-          </p>
-        </div>
-
-        {selectedModule && (
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            className="self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl shadow-xs transition-colors"
+    <div className="flex flex-col md:flex-row gap-8 min-h-[calc(100vh-6rem)]">
+      {/* Sidebar */}
+      <div className="w-full md:w-80 shrink-0">
+        <div className="sticky top-24">
+          <h2
+            className="text-xl font-bold mb-4 line-clamp-2"
+            title={course.title}
           >
-            <span>📌</span>
-            <span>View Cheat Sheet</span>
-            <span className="text-xs bg-amber-700/60 px-1.5 py-0.5 rounded-full">
-              {selectedModule.cheatsheet_bullets?.length || 0}
-            </span>
-          </button>
-        )}
-      </div>
-
-      {/* Main Course Layout: Left Module Sidebar, Right Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Module Navigation List */}
-        <div className="lg:col-span-1">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
-            Course Modules
+            {course.title}
           </h2>
           <ModuleList
             modules={sortedModules}
@@ -223,47 +117,63 @@ export default function CoursePage({
             onSelectModule={setSelectedModuleId}
           />
         </div>
-
-        {/* Right Column: Selected Module Content & Quiz */}
-        <div className="lg:col-span-2 space-y-8">
-          {selectedModule ? (
-            <>
-              {/* Module Overview Card */}
-              <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xs space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider">
-                  Module {selectedModule.order_index + 1}
-                </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {selectedModule.title}
-                </h2>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                  {selectedModule.summary}
-                </p>
-              </div>
-
-              {/* Module Quiz Knowledge Check */}
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                  <span>🧠</span> Knowledge Check Quiz
-                </h3>
-                <QuizView questions={selectedModule.quiz_questions || []} />
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center p-12 text-gray-400 italic">
-              No module selected.
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Cheat Sheet Slide-over Drawer */}
-      {selectedModule && (
-        <CheatSheetDrawer
-          bullets={selectedModule.cheatsheet_bullets || []}
-          isOpen={isDrawerOpen}
-          onClose={() => setIsDrawerOpen(false)}
-        />
+      {/* Main Content Area */}
+      {selectedModule ? (
+        <div className="flex-1 min-w-0 pb-16">
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-1">
+                MODULE {selectedModule.order_index + 1}
+              </div>
+              <h1 className="text-3xl font-bold leading-tight">
+                {selectedModule.title}
+              </h1>
+            </div>
+
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 rounded-md font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Cheat Sheet
+            </button>
+          </div>
+
+          <div className="prose dark:prose-invert max-w-none mb-10">
+            <p className="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
+              {selectedModule.summary}
+            </p>
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-10">
+            <h3 className="text-2xl font-bold mb-6">Knowledge Check</h3>
+            <QuizView questions={selectedModule.quiz_questions} />
+          </div>
+
+          <CheatSheetDrawer
+            isOpen={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+            bullets={selectedModule.cheatsheet_bullets}
+          />
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-gray-500">
+          No modules found for this course.
+        </div>
       )}
     </div>
   );

@@ -109,17 +109,14 @@ export default function CoursesPage() {
     setProcessingDocId(null);
   };
 
-  const [generateError, setGenerateError] = useState<string | null>(null);
-
   const handleGenerateCourse = async (docId: string) => {
     try {
-      setGenerateError(null);
       const res = await generateCourse(docId);
       router.push(`/courses/${res.id}`);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to generate course";
-      setGenerateError(message);
+      alert(message);
     }
   };
 
@@ -447,11 +444,6 @@ export default function CoursesPage() {
             >
               Your Documents
             </h2>
-            {generateError && (
-              <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-sm">
-                <span className="font-semibold">Course Generation Error:</span> {generateError}
-              </div>
-            )}
             {loading ? (
               <p className="text-gray-500">Loading documents...</p>
             ) : error ? (

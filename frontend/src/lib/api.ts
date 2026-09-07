@@ -10,63 +10,15 @@ import {
   InterviewReportResponse
 } from "./types";
 
-// Normalize API_BASE by removing any accidental trailing slashes
-const RAW_API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-export const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-const DEFAULT_TIMEOUT_MS = 90000; // 90s timeout to allow Render free tier cold-start waking
-
-interface FetchOptions extends RequestInit {
-  timeoutMs?: number;
-}
-
-async function fetchAPI<T>(path: string, options?: FetchOptions): Promise<T> {
-  const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  const url = `${API_BASE}${cleanPath}`;
-  
-  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(url, {
-      ...options,
-      signal: options?.signal || controller.signal,
-    });
-    
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ detail: res.statusText }));
-      const errorMessage = error.detail || `API error (${res.status}): ${res.statusText}`;
-      throw new Error(errorMessage);
-    }
-    return await res.json();
-  } catch (err: unknown) {
-    clearTimeout(timeoutId);
-    
-    if (err instanceof Error) {
-      if (err.name === "AbortError") {
-        throw new Error(
-          "Request timed out. The cloud server may be waking up from cold start — please try again in a moment."
-        );
-      }
-      if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
-        throw new Error(
-          "Unable to connect to the backend server. If using the free tier, the server may take ~60 seconds to wake up."
-        );
-      }
-      throw err;
-    }
-    throw new Error("An unexpected network error occurred.");
+async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, options);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(error.detail || `API error: ${res.status}`);
   }
-}
-
-/**
- * Ping backend health endpoint to warm up cold-starting server.
- */
-export async function checkHealth(): Promise<{ status: string; service: string }> {
-  return fetchAPI<{ status: string; service: string }>("/health", { timeoutMs: 15000 });
+  return res.json();
 }
 
 export async function uploadDocument(
