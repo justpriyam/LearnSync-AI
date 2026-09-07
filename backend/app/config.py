@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
     GEMINI_MODEL: str = "gemini-3.6-flash"
     TOP_K_CHUNKS: int = 8
     MAX_LLM_RETRIES: int = 3
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     MAX_INTERVIEW_TURNS: int = 10
     DIFFICULTY_ESCALATION_THRESHOLD: int = 4  # score >= this -> harder question
     DIFFICULTY_PIVOT_THRESHOLD: int = 2  # score <= this -> foundational question
-    INTERVIEW_GROQ_MODEL: str = "llama-3.3-70b-versatile"  # fast model for interview turns
+    INTERVIEW_GROQ_MODEL: str = "qwen/qwen3.8-27b"  # fast model for interview turns
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
