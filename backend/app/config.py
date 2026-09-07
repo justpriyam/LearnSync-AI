@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.6-flash"
     TOP_K_CHUNKS: int = 8
     MAX_LLM_RETRIES: int = 3
     LLM_RETRY_DELAY_SECONDS: float = 2.0
