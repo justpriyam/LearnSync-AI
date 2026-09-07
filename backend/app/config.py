@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
-    GROQ_MODEL: str = "qwen/qwen3.8-27b"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
     GEMINI_MODEL: str = "gemini-3.6-flash"
     TOP_K_CHUNKS: int = 8
     MAX_LLM_RETRIES: int = 3
@@ -18,14 +18,14 @@ class Settings(BaseSettings):
     CHEATSHEET_BULLETS_PER_MODULE: int = 7
     MAX_UPLOAD_SIZE_MB: int = 50
     GEMINI_MAX_OUTPUT_TOKENS: int = 8192
-    GROQ_MAX_TOKENS: int = 4096
+    GROQ_MAX_TOKENS: int = 2048
     CHROMA_COLLECTION_PREFIX: str = "learnsync_doc_"
     SIMILARITY_THRESHOLD: float = 0.4
     LOW_PRIORITY_FREQUENCY_THRESHOLD: int = 1
     MAX_INTERVIEW_TURNS: int = 10
     DIFFICULTY_ESCALATION_THRESHOLD: int = 4  # score >= this -> harder question
     DIFFICULTY_PIVOT_THRESHOLD: int = 2  # score <= this -> foundational question
-    INTERVIEW_GROQ_MODEL: str = "qwen/qwen3.8-27b"  # fast model for interview turns
+    INTERVIEW_GROQ_MODEL: str = "openai/gpt-oss-120b"  # fast model for interview turns
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

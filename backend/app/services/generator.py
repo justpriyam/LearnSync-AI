@@ -81,6 +81,8 @@ def call_groq(
             return chat_completion.choices[0].message.content or ""
         except Exception as e:
             logger.warning(f"Groq attempt {attempt}/{settings.MAX_LLM_RETRIES} failed: {e}")
+            if "rate_limit" in str(e).lower() or "429" in str(e):
+                raise
             if attempt < settings.MAX_LLM_RETRIES:
                 time.sleep(settings.LLM_RETRY_DELAY_SECONDS * attempt)
             else:

@@ -1,6 +1,7 @@
 import logging
 import json
 import uuid
+import time
 from pathlib import Path
 
 from app.database import SessionLocal
@@ -69,6 +70,8 @@ def run_generation(course_id: str) -> None:
         
         # Pass 2
         for i, mod_outline in enumerate(module_outlines):
+            if i > 0:
+                time.sleep(1.0)
             title = mod_outline.get("title", f"Module {i+1}")
             summary = mod_outline.get("summary", "")
             chunk_ids = mod_outline.get("chunk_ids", [])
