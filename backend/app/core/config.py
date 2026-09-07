@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001,https://frontend-six-omega-55.vercel.app"
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
-    GROQ_MODEL: str = "openai/gpt-oss-120b"
-    GEMINI_MODEL: str = "gemini-3.6-flash"
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GEMINI_MODEL: str = "gemini-2.0-flash"
     TOP_K_CHUNKS: int = 8
     MAX_LLM_RETRIES: int = 3
     LLM_RETRY_DELAY_SECONDS: float = 2.0
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     MAX_INTERVIEW_TURNS: int = 10
     DIFFICULTY_ESCALATION_THRESHOLD: int = 4  # score >= this -> harder question
     DIFFICULTY_PIVOT_THRESHOLD: int = 2  # score <= this -> foundational question
-    INTERVIEW_GROQ_MODEL: str = "openai/gpt-oss-120b"  # fast model for interview turns
+    INTERVIEW_GROQ_MODEL: str = "llama-3.3-70b-versatile"  # fast model for interview turns
 
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env"),
