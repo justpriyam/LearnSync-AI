@@ -12,31 +12,26 @@
 
 ## Features
 
-### 📚 Course Engine
+### 📚 Course Engine (`/courses`)
 Upload any textbook PDF and get a complete course structure:
 - **Module breakdown** — AI analyzes the document and organizes content into coherent learning modules
-- **MCQ quizzes** — 5 multiple-choice questions per module with instant right/wrong feedback
+- **MCQ quizzes** — 5 multiple-choice questions per module with instant right/wrong feedback and grounded explanations
 - **Cheat sheets** — Key bullet points for quick revision, accessible via slide-out drawer
 - **Source grounding** — Every quiz question traces back to a specific document chunk (`source_chunk_id`)
 
-### 🎯 Sprint Engine
+### 🎯 Sprint Engine (`/sprint`)
 Upload previous year questions (PYQs) + set an exam deadline:
 - **PYQ frequency analysis** — Ranks syllabus topics by how often they appear in past exams
-- **Day-by-day study plan** — High-priority topics scheduled first, low-priority de-emphasized (not hidden)
+- **Day-by-day study plan** — High-priority topics scheduled first, low-priority de-emphasized
 - **Re-runnable** — Change deadline or add more PYQs, get a fresh plan without teardown
 - **Confidence scores** — See how well each PYQ matched each topic (cosine similarity %)
 
-### 🎙️ Mock Mentor
-Upload a resume + paste a job description, then do a spoken interview:
+### 🎙️ Mock Mentor (`/interview`)
+Upload a resume + job description, then participate in an interactive spoken interview:
 - **Adaptive difficulty** — AI escalates to harder questions when you score well, pivots to basics when you struggle
-- **Voice + text** — Web Speech API for spoken Q&A, with text fallback for unsupported browsers
+- **Voice + text** — Web Speech API for spoken Q&A with text fallback
 - **Turn-by-turn scoring** — Each answer evaluated on a 1–5 scale with detailed feedback
-- **Analytics report** — Strengths, weaknesses, topic coverage, and suggestions at the end
-
-### 🔒 Hardening
-- **Grounding audit** — Automated tests verify every generated artifact traces to source chunks
-- **Deletion endpoints** — Full cleanup of documents, courses, embeddings, and interview data
-- **Error handling** — Corrupt PDFs, rate limits, oversized files — all produce clear, actionable messages
+- **Analytics report** — Strengths, weaknesses, topic coverage, and suggestions upon completion
 
 ---
 
@@ -44,13 +39,13 @@ Upload a resume + paste a job description, then do a spoken interview:
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 16, React, TypeScript (strict), Tailwind CSS |
+| Frontend | Next.js 16, React 19, TypeScript (strict), Tailwind CSS v4, Lucide Icons |
 | Backend | FastAPI, Python 3.13, SQLAlchemy 2.0, Pydantic v2 |
 | Vector DB | ChromaDB (persistent, per-document collections) |
 | LLM (fast) | Groq — `llama-3.3-70b-versatile` |
 | LLM (heavy context) | Google Gemini — `gemini-2.0-flash` |
-| Speech | Web Speech API (browser-native, no server cost) |
-| Database | SQLite (dev) / PostgreSQL (prod) — one-line `.env` switch |
+| Speech | Web Speech API (browser-native, zero server latency) |
+| Database | SQLite (dev) / PostgreSQL (prod e.g. Neon, Supabase, Render) |
 
 ---
 
@@ -60,54 +55,51 @@ Upload a resume + paste a job description, then do a spoken interview:
 LearnSync AI/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                 # FastAPI app, CORS, router registration
-│   │   ├── config.py               # All settings (env-driven, pydantic-settings)
-│   │   ├── database.py             # SQLAlchemy engine + session
-│   │   ├── models.py               # ORM: Document, Course, Module, Quiz, Sprint, Interview
-│   │   ├── schemas.py              # Pydantic request/response schemas
-│   │   ├── routers/
+│   │   ├── main.py                 # FastAPI app, CORS, router mounting
+│   │   ├── core/                   # Core configuration & settings
+│   │   │   └── config.py           # Pydantic settings, env loading
+│   │   ├── db/                     # Database layer & models
+│   │   │   ├── database.py         # SQLAlchemy engine (SQLite & Postgres)
+│   │   │   └── models.py           # ORM models (Document, Course, Sprint, Interview)
+│   │   ├── api/                    # Route handlers grouped by feature
+│   │   │   ├── health.py           # /health check and server warming
 │   │   │   ├── documents.py        # Upload + ingestion status
 │   │   │   ├── courses.py          # Course generation + retrieval
 │   │   │   ├── sprint.py           # Sprint plan generation
-│   │   │   ├── interview.py        # Interview start/turn/report
+│   │   │   ├── interview.py        # Interview start, turn evaluation, report
 │   │   │   └── deletion.py         # Admin deletion endpoints
-│   │   └── services/
-│   │       ├── pdf_parser.py       # PyMuPDF text extraction
-│   │       ├── chunker.py          # Recursive text splitting
-│   │       ├── embedder.py         # ChromaDB embed/retrieve
-│   │       ├── generator.py        # Gemini + Groq LLM calls
-│   │       ├── pipeline.py         # Background task orchestrators
-│   │       ├── sprint_scorer.py    # PYQ frequency scoring (pure function)
-│   │       └── interviewer.py      # Difficulty state machine (pure functions)
-│   ├── tests/                      # 20 tests across 5 test files
-│   ├── sandbox/                    # Phase 0 proof-of-concept script
+│   │   ├── services/               # Business logic per engine
+│   │   │   ├── pdf_parser.py       # PyMuPDF text extraction
+│   │   │   ├── chunker.py          # Recursive text splitting
+│   │   │   ├── embedder.py         # ChromaDB embed/retrieve
+│   │   │   ├── generator.py        # Gemini + Groq LLM calls
+│   │   │   ├── pipeline.py         # Background task orchestrators
+│   │   │   ├── sprint_scorer.py    # PYQ frequency scoring (pure function)
+│   │   │   └── interviewer.py      # Difficulty state machine (pure functions)
+│   │   └── schemas.py              # Pydantic request/response schemas
+│   ├── tests/                      # 20 automated unit and integration tests
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── page.tsx            # Home: upload + document list
-│   │   │   ├── layout.tsx          # Root layout with nav
-│   │   │   ├── courses/[courseId]/  # Classroom view
-│   │   │   ├── sprint/             # Sprint wizard + dashboard
-│   │   │   └── interview/          # Interview session + report
+│   │   │   ├── layout.tsx          # Root layout with server warming notice
+│   │   │   ├── page.tsx            # Cinematic hero landing page
+│   │   │   ├── (dashboard)/
+│   │   │   │   ├── courses/        # Hero courses page + [courseId] classroom
+│   │   │   │   ├── sprint/         # Hero sprint planner + [sprintId] dashboard
+│   │   │   │   └── interview/      # Hero mock mentor + session & report
 │   │   ├── components/
-│   │   │   ├── UploadZone.tsx      # Drag-and-drop PDF upload
-│   │   │   ├── ProcessingStatus.tsx # Ingestion status poller
-│   │   │   ├── QuizView.tsx        # MCQ with feedback + source refs
-│   │   │   ├── CheatSheetDrawer.tsx # Slide-out cheat sheet
-│   │   │   ├── SprintDashboard.tsx # Ranked topics by day
-│   │   │   ├── InterviewSession.tsx # Voice + text Q&A loop
-│   │   │   └── InterviewReport.tsx # End-of-session analytics
+│   │   │   ├── common/             # Shared UI (UploadZone, ProcessingStatus, WarmingNotice)
+│   │   │   ├── courses/            # Course engine UI (DocumentCard, ModuleList, QuizView, CheatSheet)
+│   │   │   ├── sprint/             # Sprint dashboard UI (SprintDashboard)
+│   │   │   └── interview/          # Mock mentor UI (InterviewSession, InterviewReport)
 │   │   └── lib/
-│   │       ├── types.ts            # TypeScript interfaces
-│   │       └── api.ts              # Typed API client
+│   │       ├── api.ts              # Resilient API client with timeout & warming
+│   │       └── types.ts            # TypeScript interfaces
 │   ├── package.json
-│   ├── tailwind.config.ts
 │   └── .env.example
-├── 01_PRD.md                       # Product Requirements Document
-├── 02_Design_Doc.html              # Technical Design Document
-├── 03_Tech_Stack.md                # Stack Decisions & Rationale
+├── render.yaml                     # Render deployment blueprint
 ├── .gitignore
 └── README.md
 ```
@@ -118,170 +110,92 @@ LearnSync AI/
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/documents` | Upload PDF, start ingestion |
-| `GET` | `/documents/{id}/status` | Poll ingestion progress |
-| `GET` | `/documents` | List all documents |
+| `GET` | `/health` | Health check & cold-start warming ping |
+| `POST` | `/documents` | Upload PDF & start background ingestion |
+| `GET` | `/documents/{id}/status` | Poll document ingestion progress |
+| `GET` | `/documents` | List all uploaded documents |
 | `POST` | `/courses/{doc_id}/generate` | Generate course from document |
-| `GET` | `/courses/{id}` | Get full course with modules/quizzes |
+| `GET` | `/courses/{id}` | Get course details with modules & quizzes |
 | `POST` | `/sprint/generate` | Generate sprint plan (syllabus + PYQ + deadline) |
-| `GET` | `/sprint/{id}` | Get sprint plan with ranked topics |
+| `GET` | `/sprint/{id}` | Get sprint plan with daily breakdown |
 | `POST` | `/interview/start` | Start interview session (resume + JD) |
-| `POST` | `/interview/{id}/turn` | Submit answer, get next question |
-| `GET` | `/interview/{id}/report` | Get analytics report |
-| `DELETE` | `/admin/documents/{id}` | Delete document + all artifacts |
-| `DELETE` | `/admin/interviews/{id}` | Delete interview + all turns |
+| `POST` | `/interview/{id}/turn` | Submit response, evaluate & get next question |
+| `GET` | `/interview/{id}/report` | Get performance evaluation report |
+| `DELETE` | `/admin/documents/{id}` | Cascade delete document + all artifacts |
+| `DELETE` | `/admin/interviews/{id}` | Delete interview session + turns |
 
 ---
 
-## Quick Start
+## Quick Start (Local Development)
 
-### Prerequisites
+### 1. Prerequisites
 - Python 3.11+
 - Node.js 18+
-- [Groq API Key](https://console.groq.com/) (free tier available)
-- [Google Gemini API Key](https://aistudio.google.com/apikey) (free tier available)
+- [Groq API Key](https://console.groq.com/) (free tier)
+- [Google Gemini API Key](https://aistudio.google.com/apikey) (free tier)
 
-### 1. Clone the repo
-```bash
-git clone https://github.com/YOUR_USERNAME/learnsync-ai.git
-cd learnsync-ai
-```
-
-### 2. Backend setup
+### 2. Backend Setup
 ```bash
 cd backend
 pip install -r requirements.txt
 cp .env.example .env
+
 # Edit .env and add your API keys:
-#   GROQ_API_KEY=gsk_...
-#   GEMINI_API_KEY=AI...
+# GROQ_API_KEY=gsk_...
+# GEMINI_API_KEY=AI...
+
+uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. Frontend setup
+### 3. Frontend Setup
 ```bash
 cd frontend
 npm install
 cp .env.example .env.local
-```
 
-### 4. Run
-```bash
-# Terminal 1 — Backend (http://localhost:8000)
-cd backend
-uvicorn app.main:app --reload --port 8000
-
-# Terminal 2 — Frontend (http://localhost:3000)
-cd frontend
 npm run dev
 ```
 
-### 5. Use it
-1. Open **http://localhost:3000**
-2. Upload a PDF textbook → wait for processing → click **Generate Course**
-3. Browse modules, take quizzes, open cheat sheets
-4. Go to **Sprint Planner** → select syllabus → upload PYQ PDF → set deadline → generate plan
-5. Go to **Mock Interview** → upload resume + JD → start speaking!
+Visit **http://localhost:3000** in your browser.
 
 ---
 
-## Production Deployment
+## Automated Tests
 
-Deploy the frontend and backend as separate services:
-
-1. **Backend on Render:** create a new Blueprint from this repository. Render will use [`render.yaml`](render.yaml), install `backend/requirements.txt`, and start FastAPI on the assigned port. Add `GROQ_API_KEY`, `GEMINI_API_KEY`, and set `CORS_ORIGINS` to the deployed Vercel URL, such as `https://learnsync-ai.vercel.app`.
-2. **Frontend on Vercel:** import the repository with `frontend` as the **Root Directory** and select the Next.js preset. Add `NEXT_PUBLIC_API_URL` with the public Render backend URL, such as `https://learnsync-api.onrender.com`.
-3. Keep the Render persistent disk enabled. SQLite, uploaded files, and ChromaDB are stored under `/var/data`; removing the disk removes those records and files.
-
-The frontend cannot be deployed from the repository root because the root has no `package.json`. The backend should not be deployed as a normal Vercel Next.js project because it requires persistent storage and background processing.
-
----
-
-## Testing
-
+Run backend test suite:
 ```bash
 cd backend
 python -m pytest tests/ -v
 ```
 
-**20 tests across 5 suites:**
-- `test_quiz_schema.py` — Quiz JSON schema + source_chunk_id grounding
-- `test_sprint_scorer.py` — Frequency ranking, tie-breaking, day assignment
-- `test_interviewer_state.py` — Difficulty escalation/pivot sequences
-- `test_grounding.py` — Grounding integrity audit
-- `test_deletion.py` — Cascade deletion verification
+All 20 tests verify:
+- `test_quiz_schema.py` — Quiz JSON validation & `source_chunk_id` grounding
+- `test_sprint_scorer.py` — Frequency ranking, priority scoring, daily assignment
+- `test_interviewer_state.py` — Difficulty escalation & pivot rules
+- `test_grounding.py` — Document grounding integrity
+- `test_deletion.py` — Cascade deletion across all models
 
 ---
 
-## Architecture
+## Production Deployment
 
-```
-┌─────────────────┐       ┌──────────────────────────────┐
-│   Next.js UI    │◄─────►│        FastAPI Backend        │
-│   (Port 3000)   │  REST │         (Port 8000)           │
-└─────────────────┘       ├──────────────────────────────┤
-                          │  Services Layer               │
-                          │  ├── pdf_parser (PyMuPDF)     │
-                          │  ├── chunker (LangChain)      │
-                          │  ├── embedder (ChromaDB)      │
-                          │  ├── generator (Gemini/Groq)  │
-                          │  ├── sprint_scorer            │
-                          │  └── interviewer              │
-                          ├──────────────────────────────┤
-                          │  Data Layer                   │
-                          │  ├── SQLite/Postgres (SQLAlchemy) │
-                          │  └── ChromaDB (embeddings)    │
-                          └──────────────────────────────┘
-                                      │
-                          ┌───────────┴───────────┐
-                          │    LLM Providers      │
-                          │  ├── Gemini (outlines) │
-                          │  └── Groq (quizzes,   │
-                          │       interviews)     │
-                          └───────────────────────┘
-```
+### 1. Backend (Render Free Tier)
+- Create a new **Web Service** on Render from this repository.
+- Root Directory: `backend`
+- Build Command: `pip install -r requirements.txt`
+- Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Health Check Path: `/health`
+- Set Environment Variables:
+  - `GROQ_API_KEY`
+  - `GEMINI_API_KEY`
+  - `CORS_ORIGINS`: `https://frontend-six-omega-55.vercel.app`
+  - `DATABASE_URL`: `sqlite:///./learnsync.db` (or your free Neon/Supabase PostgreSQL connection string)
 
-**LLM Division of Labor:**
-- **Gemini** (`gemini-2.0-flash`) — Heavy context tasks: module outline generation from full document
-- **Groq** (`llama-3.3-70b-versatile`) — Fast turn-by-turn tasks: quiz generation, interview Q&A, evaluation
+### 2. Frontend (Vercel Free Tier)
+- Import repository into Vercel.
+- Root Directory: `frontend`
+- Framework Preset: **Next.js**
+- Set Environment Variable:
+  - `NEXT_PUBLIC_API_URL`: `https://learnsync-api.onrender.com` (your Render backend URL)
 
----
-
-## Configuration
-
-All settings are environment-driven via `backend/.env`. See [`.env.example`](backend/.env.example) for the full list.
-
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | `sqlite:///./learnsync.db` | Database connection string |
-| `GROQ_API_KEY` | *(required)* | Groq API key |
-| `GEMINI_API_KEY` | *(required)* | Google Gemini API key |
-| `MAX_UPLOAD_SIZE_MB` | `50` | Maximum upload file size |
-| `CHUNK_SIZE` | `1000` | Text chunk size (characters) |
-| `SIMILARITY_THRESHOLD` | `0.4` | Min cosine similarity for PYQ matching |
-| `MAX_INTERVIEW_TURNS` | `10` | Questions per interview session |
-| `DIFFICULTY_ESCALATION_THRESHOLD` | `4` | Score to trigger harder questions |
-| `DIFFICULTY_PIVOT_THRESHOLD` | `2` | Score to trigger easier questions |
-| `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated frontend origins allowed by the API |
-| `CHROMA_DATA_DIR` | `.chroma_data` | Persistent ChromaDB directory |
-
----
-
-## Design Decisions
-
-- **Strict context grounding** — Every LLM call only receives chunks from the user's own document. No open web access during generation. Every quiz question carries a `source_chunk_id` (non-nullable).
-- **Backend-authoritative interview** — Difficulty escalation/pivot logic lives entirely in the backend. The frontend only renders what the backend decides.
-- **Voice as enhancement** — Web Speech API is detected at runtime. If unsupported or mic denied, the text input works identically. Same API contract either way.
-- **Pure scoring functions** — Sprint scoring and interview difficulty are pure functions with no DB/API side effects, making them independently testable.
-- **Per-document ChromaDB collections** — Each uploaded document gets its own embedding collection for isolation and clean deletion.
-
----
-
-## License
-
-This project is for educational purposes.
-
----
-
-## Acknowledgments
-
-Built with [Groq](https://groq.com/), [Google Gemini](https://ai.google.dev/), [ChromaDB](https://www.trychroma.com/), [FastAPI](https://fastapi.tiangolo.com/), and [Next.js](https://nextjs.org/).
+> **Note on Free Tier Cold Starts:** Render's free tier sleeps after 15 minutes of inactivity and takes ~30–60 seconds to wake up. The frontend includes automatic background pre-warming via `/health` and a non-intrusive status indicator when waking up.

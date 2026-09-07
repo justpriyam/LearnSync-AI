@@ -1,6 +1,5 @@
-# Re-export for backward compatibility
+from app.db.database import Base, engine, SessionLocal, get_db, init_db
 from app.db.models import (
-    Base,
     Document,
     Course,
     Module,
@@ -10,11 +9,14 @@ from app.db.models import (
     SprintTopic,
     InterviewSession,
     InterviewTurn,
-    utc_now,
 )
 
 __all__ = [
     "Base",
+    "engine",
+    "SessionLocal",
+    "get_db",
+    "init_db",
     "Document",
     "Course",
     "Module",
@@ -24,5 +26,4 @@ __all__ = [
     "SprintTopic",
     "InterviewSession",
     "InterviewTurn",
-    "utc_now",
 ]

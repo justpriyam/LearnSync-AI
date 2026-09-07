@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import ServerWarmingNotice from '@/components/common/ServerWarmingNotice';
 
 export const metadata: Metadata = {
   title: 'LearnSync AI',
@@ -29,6 +30,7 @@ export default function RootLayout({
       </head>
       <body>
         {children}
+        <ServerWarmingNotice />
       </body>
     </html>
   );
