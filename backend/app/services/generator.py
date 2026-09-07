@@ -7,7 +7,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-def call_gemini(prompt: str) -> str:
+def call_gemini(prompt: str, json_mode: bool = False) -> str:
     """Call Gemini API with retry logic."""
     import google.generativeai as genai
 
@@ -17,14 +17,18 @@ def call_gemini(prompt: str) -> str:
     genai.configure(api_key=settings.GEMINI_API_KEY)
     model = genai.GenerativeModel(settings.GEMINI_MODEL)
 
+    config_kwargs: dict[str, Any] = {
+        "max_output_tokens": settings.GEMINI_MAX_OUTPUT_TOKENS,
+        "temperature": 0.3,
+    }
+    if json_mode:
+        config_kwargs["response_mime_type"] = "application/json"
+
     for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
         try:
             response = model.generate_content(
                 prompt,
-                generation_config=genai.GenerationConfig(
-                    max_output_tokens=settings.GEMINI_MAX_OUTPUT_TOKENS,
-                    temperature=0.3,
-                ),
+                generation_config=genai.GenerationConfig(**config_kwargs),
             )
             return response.text
         except Exception as e:
@@ -111,17 +115,22 @@ Respond with ONLY a valid JSON array (no markdown, no explanation) in this forma
 ]"""
 
     logger.info("Pass 1: Generating module outline via Gemini...")
-    raw_response = call_gemini(prompt)
+    raw_response = call_gemini(prompt, json_mode=True)
 
     json_str = raw_response.strip()
     if json_str.startswith("```"):
         lines = json_str.split("\n")
         json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+    else:
+        start_idx = json_str.find("[")
+        end_idx = json_str.rfind("]")
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            json_str = json_str[start_idx : end_idx + 1]
 
     try:
         modules = json.loads(json_str)
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse Gemini response as JSON: {e}")
+        logger.error(f"Failed to parse Gemini response as JSON: {e}\nRaw response:\n{raw_response}")
         raise RuntimeError("Gemini returned invalid JSON for module outline") from e
 
     if not isinstance(modules, list) or len(modules) == 0:
@@ -168,17 +177,22 @@ Respond with ONLY valid JSON in this exact format:
   }}
 }}"""
 
-    raw_response = call_groq(prompt)
+    raw_response = call_groq(prompt, json_mode=True)
 
     json_str = raw_response.strip()
     if json_str.startswith("```"):
         lines = json_str.split("\n")
         json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+    else:
+        start_idx = json_str.find("{")
+        end_idx = json_str.rfind("}")
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            json_str = json_str[start_idx : end_idx + 1]
 
     try:
         result = json.loads(json_str)
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse Groq response for module '{module_title}': {e}")
+        logger.error(f"Failed to parse Groq response for module '{module_title}': {e}\nRaw response:\n{raw_response}")
         raise RuntimeError(f"Groq returned invalid JSON for module '{module_title}'") from e
 
     return result
