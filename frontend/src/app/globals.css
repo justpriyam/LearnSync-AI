@@ -22,6 +22,36 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes e-settle-down {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes e-settle-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes e-focus {
+  from { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+
+@keyframes e-panel {
+  from { opacity: 0; transform: translateY(18px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes e-populate {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes e-send {
+  from { transform: scale(.82); }
+  to { transform: none; }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
