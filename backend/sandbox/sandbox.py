@@ -76,19 +76,17 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
             f"PDF is {size_mb:.1f} MB, exceeds {config.MAX_UPLOAD_SIZE_MB} MB limit"
         )
 
-    doc = pymupdf.open(str(pdf_path))
-    if doc.page_count == 0:
-        doc.close()
-        raise ValueError(f"PDF has no pages: {pdf_path}")
+    with pymupdf.open(str(pdf_path)) as doc:
+        page_count = doc.page_count
+        if page_count == 0:
+            raise ValueError(f"PDF has no pages: {pdf_path}")
 
-    text_parts: list[str] = []
-    for page_num in range(doc.page_count):
-        page = doc[page_num]
-        page_text = page.get_text("text")
-        if page_text.strip():
-            text_parts.append(page_text)
-
-    doc.close()
+        text_parts: list[str] = []
+        for page_num in range(page_count):
+            page = doc[page_num]
+            page_text = page.get_text("text")
+            if page_text.strip():
+                text_parts.append(page_text)
 
     full_text = "\n\n".join(text_parts)
     if not full_text.strip():
@@ -96,7 +94,7 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
             f"No extractable text in PDF (possibly scanned/image-only): {pdf_path}"
         )
 
-    print(f"[✓] Extracted {len(full_text):,} characters from {doc.page_count} pages")
+    print(f"[✓] Extracted {len(full_text):,} characters from {page_count} pages")
     return full_text
 
 
