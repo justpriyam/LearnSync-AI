@@ -447,7 +447,12 @@ export default function CoursesPage() {
             {loading ? (
               <p className="text-gray-500">Loading documents...</p>
             ) : error ? (
-              <p className="text-red-500">{error}</p>
+              <div className="text-red-500">
+                <p>{error}</p>
+                <button onClick={fetchDocs} className="mt-2 underline">
+                  Try again
+                </button>
+              </div>
             ) : documents.length === 0 ? (
               <p className="text-gray-500 italic">
                 No documents uploaded yet. Upload a PDF above to get started.

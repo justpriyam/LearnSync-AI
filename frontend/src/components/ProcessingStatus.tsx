@@ -11,14 +11,14 @@ interface ProcessingStatusProps {
 
 export default function ProcessingStatus({ documentId, onReady }: ProcessingStatusProps) {
   const [status, setStatus] = useState<DocumentStatusResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
     const checkStatus = async () => {
       try {
         const res = await getDocumentStatus(documentId);
         setStatus(res);
+        setError(null);
         
         if (res.status === 'ready') {
           clearInterval(interval);
@@ -26,18 +26,21 @@ export default function ProcessingStatus({ documentId, onReady }: ProcessingStat
         } else if (res.status === 'failed') {
           clearInterval(interval);
         }
-      } catch (err) {
-        console.error('Error fetching document status:', err);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to check document status');
       }
     };
-    
-    checkStatus();
-    interval = setInterval(checkStatus, 2000);
-    
+    const interval = setInterval(() => void checkStatus(), 2000);
+    void checkStatus();
+
     return () => clearInterval(interval);
   }, [documentId, onReady]);
 
-  if (!status) return <div className="text-gray-500 p-4">Loading status...</div>;
+  if (error) {
+    return <div className="p-4 text-red-600">{error}</div>;
+  }
+
+  if (!status) return <div className="text-gray-500 p-4">Checking document status...</div>;
 
   let text = '';
   let color = 'text-gray-600';

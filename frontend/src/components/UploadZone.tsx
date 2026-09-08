@@ -11,6 +11,7 @@ interface UploadZoneProps {
 export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -33,12 +34,13 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
     
     setError(null);
     setIsUploading(true);
+    setUploadProgress(0);
     
     try {
-      const doc = await uploadDocument(file);
+      const doc = await uploadDocument(file, setUploadProgress);
       onUploadComplete(doc);
-    } catch (err: any) {
-      setError(err.message || 'Failed to upload document');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to upload document');
     } finally {
       setIsUploading(false);
     }
@@ -87,7 +89,13 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
         </svg>
         <div>
           {isUploading ? (
-            <p className="text-lg font-medium text-blue-500">Uploading...</p>
+            <div className="w-full max-w-sm">
+              <p className="text-lg font-medium text-blue-500">Uploading {uploadProgress}%</p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200">
+                <div className="h-full bg-blue-500 transition-[width]" style={{ width: `${uploadProgress}%` }} />
+              </div>
+              <p className="mt-2 text-sm text-gray-500">The document will keep processing after upload.</p>
+            </div>
           ) : (
             <>
               <p className="text-lg font-medium">Click or drag PDF here to upload</p>

@@ -28,6 +28,7 @@ export default function SprintPage() {
   /* ── sprint planner state ───────────────────────────────────── */
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
   const [syllabusDocId, setSyllabusDocId] = useState<string | null>(null);
   const [pyqDocId, setPyqDocId] = useState<string | null>(null);
   const [processingPyqId, setProcessingPyqId] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export default function SprintPage() {
   const fetchDocs = useCallback(async () => {
     try {
       setLoadingDocs(true);
+      setDocumentsError(null);
       const docs = await listDocuments();
       setDocuments(
         docs.sort(
@@ -65,15 +67,16 @@ export default function SprintPage() {
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )
       );
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      setDocumentsError(err instanceof Error ? err.message : "Failed to load documents");
     } finally {
       setLoadingDocs(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchDocs();
+    const timer = setTimeout(() => void fetchDocs(), 0);
+    return () => clearTimeout(timer);
   }, [fetchDocs]);
 
   const handlePyqUploadComplete = (doc: DocumentResponse) => {
@@ -306,6 +309,11 @@ export default function SprintPage() {
             </h3>
             {loadingDocs ? (
               <p className="text-gray-500">Loading documents...</p>
+            ) : documentsError ? (
+              <div className="text-red-600">
+                <p>{documentsError}</p>
+                <button onClick={fetchDocs} className="mt-2 underline">Try again</button>
+              </div>
             ) : readyDocuments.length === 0 ? (
               <div className="text-gray-500">
                 <p>No ready documents found.</p>

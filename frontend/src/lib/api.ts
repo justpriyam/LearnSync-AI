@@ -11,24 +11,76 @@ import {
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_TIMEOUT_MS = 30_000;
+
+export class ApiError extends Error {
+  constructor(message: string, public readonly status?: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, options);
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(error.detail || `API error: ${res.status}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new ApiError(error.detail || `API error: ${res.status}`, res.status);
+    }
+    return res.json();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new ApiError(
+        "The learning service is waking up or taking longer than expected. Please try again in a moment."
+      );
+    }
+    if (error instanceof TypeError) {
+      throw new ApiError(
+        "We could not reach the learning service. Check your connection and try again."
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return res.json();
 }
 
 export async function uploadDocument(
-  file: File
+  file: File,
+  onProgress?: (progress: number) => void
 ): Promise<DocumentResponse> {
   const formData = new FormData();
   formData.append("file", file);
-  return fetchAPI<DocumentResponse>("/documents", {
-    method: "POST",
-    body: formData,
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", `${API_BASE}/documents`);
+    request.timeout = API_TIMEOUT_MS;
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
+    };
+    request.onload = () => {
+      let response: { detail?: string } & Partial<DocumentResponse> = {};
+      try {
+        response = JSON.parse(request.responseText);
+      } catch {
+        reject(new ApiError("The server returned an invalid response.", request.status));
+        return;
+      }
+      if (request.status >= 200 && request.status < 300) {
+        resolve(response as DocumentResponse);
+      } else {
+        reject(new ApiError(response.detail || `API error: ${request.status}`, request.status));
+      }
+    };
+    request.onerror = () => reject(new ApiError("We could not reach the learning service. Check your connection and try again."));
+    request.ontimeout = () => reject(new ApiError("The learning service is waking up or taking longer than expected. Please try again in a moment."));
+    request.send(formData);
   });
 }
 
