@@ -4,10 +4,23 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Document, Course
-from app.schemas import CourseResponse, CourseStatusResponse
-from app.services.pipeline import run_generation
+from app.schemas import CourseResponse, CourseStatusResponse, TopicCourseRequest
+from app.services.pipeline import run_generation, run_topic_course_generation
 
 router = APIRouter(prefix="/courses", tags=["courses"])
+
+@router.get("", response_model=list[CourseResponse])
+def list_courses(db: Session = Depends(get_db)):
+    return db.query(Course).all()
+
+@router.post("/from-topic")
+def generate_course_from_topic(req: TopicCourseRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    course_id = str(uuid.uuid4())
+    course = Course(id=course_id, topic_name=req.topic_name, title=f"Course: {req.topic_name}", status='pending')
+    db.add(course)
+    db.commit()
+    background_tasks.add_task(run_topic_course_generation, course_id, req.depth)
+    return {"id": course_id, "status": "pending"}
 
 @router.post("/{document_id}/generate", response_model=CourseStatusResponse)
 def generate_course(

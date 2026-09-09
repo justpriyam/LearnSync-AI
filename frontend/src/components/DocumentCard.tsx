@@ -27,7 +27,7 @@ export default function DocumentCard({ document, onGenerateCourse }: DocumentCar
     <div className="border border-gray-200 dark:border-gray-700 p-4 rounded-lg shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div>
         <h3 className="font-semibold text-lg">{document.filename}</h3>
-        <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+        <div className="flex items-center gap-2 mt-1 text-sm text-gray-700">
           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[document.status]}`}>
             {document.status}
           </span>

@@ -24,6 +24,7 @@ export default function InterviewSession({
   initialDifficulty,
   onComplete
 }: InterviewSessionProps) {
+  const [started, setStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(openingQuestion);
   const [currentDifficulty, setCurrentDifficulty] = useState(initialDifficulty);
   const [answerText, setAnswerText] = useState('');
@@ -40,15 +41,53 @@ export default function InterviewSession({
 
   const recognitionRef = useRef<any>(null);
 
-  useEffect(() => {
-    if (!currentQuestion || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const utterance = new SpeechSynthesisUtterance(currentQuestion);
+  const speakWithPremiumVoice = async (text: string) => {
     setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-    return () => window.speechSynthesis.cancel();
-  }, [currentQuestion]);
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      
+      const contentType = response.headers.get('content-type');
+      if (response.ok && contentType && contentType.includes('audio/mpeg')) {
+        const blob = await response.blob();
+        const audio = new Audio(URL.createObjectURL(blob));
+        audio.onended = () => setIsSpeaking(false);
+        audio.play();
+        return;
+      }
+    } catch (e) {
+      console.error("Premium voice failed, falling back to Web Speech", e);
+    }
+
+    // Fallback to Web Speech API
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      // Try to find a good Google voice
+      const voices = window.speechSynthesis.getVoices();
+      const googleVoice = voices.find(v => v.name.includes('Google'));
+      if (googleVoice) utterance.voice = googleVoice;
+      
+      utterance.onend = () => setIsSpeaking(false);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    } else {
+      setIsSpeaking(false);
+    }
+  };
+
+  useEffect(() => {
+    if (started && currentQuestion) {
+      speakWithPremiumVoice(currentQuestion);
+    }
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [currentQuestion, started]);
 
   useEffect(() => {
     // Check speech support
@@ -63,23 +102,17 @@ export default function InterviewSession({
         
         recognition.onresult = (event: any) => {
           let finalTranscript = '';
-          let interimTranscript = '';
-          
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
               finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
             }
           }
-          
           if (finalTranscript) {
             setAnswerText(prev => prev ? prev + ' ' + finalTranscript : finalTranscript);
           }
         };
 
         recognition.onerror = (event: any) => {
-          console.error('Speech recognition error', event.error);
           setRecognitionError(event.error);
           setIsListening(false);
         };
@@ -95,7 +128,6 @@ export default function InterviewSession({
 
   const toggleListening = () => {
     if (!recognitionRef.current) return;
-    
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -110,20 +142,10 @@ export default function InterviewSession({
     }
   };
 
-  const readQuestion = () => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(currentQuestion);
-      utterance.onend = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!answerText.trim() || isSubmitting) return;
 
-    // Stop listening if it was on
     if (isListening && recognitionRef.current) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -148,7 +170,7 @@ export default function InterviewSession({
       if (res.is_session_complete) {
         setTimeout(() => {
           onComplete();
-        }, 3000); // Give user a moment to see the final evaluation
+        }, 3000); 
       } else {
         if (res.next_question) {
           setCurrentQuestion(res.next_question);
@@ -163,66 +185,83 @@ export default function InterviewSession({
   };
 
   const difficultyColors: Record<string, string> = {
-    'foundational': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    'intermediate': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-    'advanced': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+    'foundational': 'bg-green-100 text-green-800',
+    'intermediate': 'bg-yellow-100 text-yellow-800',
+    'advanced': 'bg-red-100 text-red-800'
   };
+
+  if (!started) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-6">
+        <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4 shadow-sm">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+        </div>
+        <h2 className="text-3xl font-bold text-gray-900">Ready to begin?</h2>
+        <p className="text-gray-600 max-w-md text-center">
+          The interviewer will speak the questions out loud. Ensure your volume is up.
+        </p>
+        <button
+          onClick={() => setStarted(true)}
+          className="mt-8 px-8 py-4 bg-indigo-600 text-white rounded-xl font-bold text-xl hover:bg-indigo-700 transition-colors shadow-lg"
+        >
+          Start Interview
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[80vh]">
       {/* Main interaction area */}
-      <div className="md:col-span-2 flex flex-col border rounded-xl overflow-hidden bg-white dark:bg-gray-900 dark:border-gray-800">
+      <div className="md:col-span-2 flex flex-col border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
         
         {/* Header */}
-        <div className="p-4 border-b dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
-          <h2 className="text-xl font-bold">Interview Session</h2>
+        <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-gray-900">Interview Session</h2>
+            <span className="text-sm text-gray-500 font-medium">Question {history.length + 1}</span>
+          </div>
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${difficultyColors[currentDifficulty] || 'bg-blue-100 text-blue-800'}`}>
             Level: {currentDifficulty}
           </span>
         </div>
 
-        {/* Evaluation Banner (shows briefly after answer) */}
+        {/* Evaluation Banner */}
         {lastEvaluation && (
-          <div className="p-4 bg-blue-50 border-b border-blue-100 dark:bg-blue-900/20 dark:border-blue-900">
-            <h3 className="font-semibold text-blue-800 dark:text-blue-300">Previous Answer Evaluation (Score: {lastEvaluation.score}/5)</h3>
-            <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">{lastEvaluation.feedback}</p>
+          <div className="p-4 bg-indigo-50 border-b border-indigo-100">
+            <h3 className="font-semibold text-indigo-800">Previous Answer Evaluation (Score: {lastEvaluation.score}/5)</h3>
+            <p className="text-sm text-indigo-700 mt-1">{lastEvaluation.feedback}</p>
           </div>
         )}
 
         {/* Q&A Area */}
-        <div className="flex-1 p-6 flex flex-col justify-center space-y-6 overflow-y-auto">
-          <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl relative">
-            <p className="text-xl font-medium leading-relaxed">{currentQuestion}</p>
-            {speechSupported && (
-              <button 
-                onClick={readQuestion}
-                disabled={isSpeaking}
-                className="absolute top-4 right-4 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50"
-                title="Read aloud"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                </svg>
-              </button>
-            )}
+        <div className="flex-1 p-6 flex flex-col justify-center space-y-6 overflow-y-auto bg-white">
+          <div className="bg-gray-50 p-6 rounded-xl relative border border-gray-100 shadow-inner">
+            <p className="text-xl font-medium leading-relaxed text-gray-900">{currentQuestion}</p>
+            <button 
+              onClick={() => speakWithPremiumVoice(currentQuestion)}
+              disabled={isSpeaking}
+              className="absolute top-4 right-4 text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50 bg-indigo-100 p-2 rounded-full"
+              title="Replay Audio"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              </svg>
+            </button>
           </div>
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-          {!speechSupported && (
-            <p className="text-xs text-orange-500 mb-2">Voice input is not supported in this browser. Please type your answer.</p>
-          )}
-          {recognitionError && (
-            <p className="text-xs text-red-500 mb-2">Voice error: {recognitionError}. Please type your answer.</p>
-          )}
+        <div className="p-4 border-t border-gray-200 bg-gray-50">
+          {!speechSupported && <p className="text-xs text-orange-500 mb-2">Voice input is not supported in this browser. Please type your answer.</p>}
+          {recognitionError && <p className="text-xs text-red-500 mb-2">Voice error: {recognitionError}. Please type your answer.</p>}
           
           <form onSubmit={handleSubmit} className="relative flex flex-col gap-3">
             <textarea
               value={answerText}
               onChange={(e) => setAnswerText(e.target.value)}
               placeholder="Type your answer here..."
-              className="w-full h-32 p-4 border rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 resize-none dark:border-gray-700"
+              className="w-full h-32 p-4 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 resize-none outline-none text-gray-900"
               disabled={isSubmitting}
             />
             <div className="flex justify-between items-center">
@@ -233,8 +272,8 @@ export default function InterviewSession({
                   disabled={isSubmitting}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                     isListening 
-                      ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300'
+                      ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <svg className="w-5 h-5" fill={isListening ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
@@ -242,14 +281,12 @@ export default function InterviewSession({
                   </svg>
                   {isListening ? 'Stop Listening' : 'Speak'}
                 </button>
-              ) : (
-                <div /> // Spacer
-              )}
+              ) : <div />}
               
               <button
                 type="submit"
-                disabled={isSubmitting || !answerText.trim()}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={!answerText.trim() || isSubmitting}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Answer'}
               </button>
@@ -259,31 +296,32 @@ export default function InterviewSession({
       </div>
 
       {/* History Sidebar */}
-      <div className="border rounded-xl bg-white dark:bg-gray-900 dark:border-gray-800 overflow-hidden flex flex-col">
-        <div className="p-4 border-b dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-          <h3 className="font-bold">Turn History</h3>
-          <p className="text-sm text-gray-500">Previous questions & scores</p>
+      <div className="border border-gray-200 rounded-xl bg-white overflow-hidden flex flex-col shadow-sm">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h3 className="font-bold text-gray-900">Turn History</h3>
+          <p className="text-sm text-gray-600">Previous questions & scores</p>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {history.length === 0 ? (
             <p className="text-gray-500 text-sm italic text-center mt-10">No questions answered yet.</p>
           ) : (
             history.map((turn, i) => (
-              <div key={i} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+              <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Q{i + 1}</span>
+                  <span className="text-xs font-semibold text-gray-700 uppercase">Q{i + 1}</span>
                   <div className="flex gap-2">
-                    <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">{turn.difficulty}</span>
+                    <span className="text-xs bg-gray-200 px-2 py-0.5 rounded text-gray-800">{turn.difficulty}</span>
                     <span className={`text-xs px-2 py-0.5 rounded font-bold ${
-                      turn.score >= 4 ? 'bg-green-100 text-green-700' :
-                      turn.score >= 3 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
+                      turn.score >= 4 ? 'bg-green-100 text-green-800' :
+                      turn.score >= 3 ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
                     }`}>
                       {turn.score}/5
                     </span>
                   </div>
                 </div>
-                <p className="text-sm font-medium line-clamp-2" title={turn.question}>{turn.question}</p>
+                <p className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">{turn.question}</p>
+                <p className="text-xs text-gray-600 line-clamp-2">{turn.answer}</p>
               </div>
             ))
           )}

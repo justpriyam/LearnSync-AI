@@ -41,7 +41,7 @@ def start_interview(req: InterviewStartRequest, db: Session = Depends(get_db)):
     resume_chunks = get_document_chunks(req.resume_document_id)
     jd_chunks = get_document_chunks(req.jd_document_id)
     
-    opening_q = generate_opening_question(resume_chunks, jd_chunks)
+    opening_q = "Hi! Tell me about yourself and your background"
     
     session = InterviewSession(
         id=str(uuid.uuid4()),
@@ -143,6 +143,10 @@ def get_report(session_id: str, db: Session = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Interview session not found")
         
+    if session.report_json:
+        report_data = json.loads(session.report_json)
+        return InterviewReportResponse(**report_data)
+
     turns = db.query(InterviewTurn).filter(InterviewTurn.session_id == session_id).order_by(InterviewTurn.turn_number).all()
     
     resume_chunks = get_document_chunks(session.resume_document_id)
@@ -163,7 +167,7 @@ def get_report(session_id: str, db: Session = Depends(get_db)):
         
     report = generate_report(turn_dicts, resume_context, jd_context)
     
-    return InterviewReportResponse(
+    report_response = InterviewReportResponse(
         session_id=session_id,
         total_turns=len(turns),
         average_score=report.get("average_score", 0),
@@ -174,3 +178,8 @@ def get_report(session_id: str, db: Session = Depends(get_db)):
         suggestions=report.get("suggestions", []),
         turns=turn_dicts
     )
+    
+    session.report_json = report_response.model_dump_json()
+    db.commit()
+    
+    return report_response

@@ -1,18 +1,14 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Menu, X } from "lucide-react";
-import { listDocuments, generateSprint } from "@/lib/api";
+import { Menu, X } from "lucide-react";
+import { listDocuments, generateSprint, generateSprintFromTopic } from "@/lib/api";
 import { DocumentResponse, DocumentStatusResponse } from "@/lib/types";
 import UploadZone from "@/components/UploadZone";
 import ProcessingStatus from "@/components/ProcessingStatus";
 import DocumentCard from "@/components/DocumentCard";
-
-/* ─── constants ──────────────────────────────────────────────── */
-const VIDEO_SRC =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260622_204221_5339e40b-e73d-4ab0-9c65-79c18c66fd50.mp4";
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
@@ -21,11 +17,20 @@ const NAV_LINKS = [
   { label: "Mock Interview", href: "/interview" },
 ];
 
-/* ─── Component ──────────────────────────────────────────────── */
 export default function SprintPage() {
   const router = useRouter();
 
-  /* ── sprint planner state ───────────────────────────────────── */
+  // Tabs
+  const [activeTab, setActiveTab] = useState<'quick' | 'advanced'>('quick');
+
+  // Quick mode state
+  const [topicName, setTopicName] = useState("");
+  const [quickDeadline, setQuickDeadline] = useState("");
+  const [quickHours, setQuickHours] = useState(4);
+  const [generatingQuick, setGeneratingQuick] = useState(false);
+  const [quickError, setQuickError] = useState<string | null>(null);
+
+  // Advanced mode state
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
@@ -34,14 +39,14 @@ export default function SprintPage() {
   const [processingPyqId, setProcessingPyqId] = useState<string | null>(null);
   const [processingSyllabusId, setProcessingSyllabusId] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string>("");
-  const [availableHoursPerDay, setAvailableHoursPerDay] = useState(2);
+  const [availableHoursPerDay, setAvailableHoursPerDay] = useState(4);
   const [supportingFile, setSupportingFile] = useState<File | null>(null);
-  const [generating, setGenerating] = useState(false);
+  const [generatingAdvanced, setGeneratingAdvanced] = useState(false);
+  const [advancedError, setAdvancedError] = useState<string | null>(null);
 
-  const readyDocuments = useMemo(
-    () => documents.filter((d) => d.status === "ready"),
-    [documents]
-  );
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const readyDocuments = useMemo(() => documents.filter((d) => d.status === "ready"), [documents]);
 
   const minDate = useMemo(() => {
     const tomorrow = new Date();
@@ -49,27 +54,12 @@ export default function SprintPage() {
     return tomorrow.toISOString().split("T")[0];
   }, []);
 
-  const daysRemaining = useMemo(() => {
-    if (!deadline) return null;
-    const d = new Date(deadline);
-    const today = new Date();
-    const diff = Math.ceil(
-      (d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    return diff > 0 ? diff : 0;
-  }, [deadline]);
-
   const fetchDocs = useCallback(async () => {
     try {
       setLoadingDocs(true);
       setDocumentsError(null);
       const docs = await listDocuments();
-      setDocuments(
-        docs.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-      );
+      setDocuments(docs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
     } catch (err: unknown) {
       setDocumentsError(err instanceof Error ? err.message : "Failed to load documents");
     } finally {
@@ -78,9 +68,10 @@ export default function SprintPage() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => void fetchDocs(), 0);
-    return () => clearTimeout(timer);
-  }, [fetchDocs]);
+    if (activeTab === 'advanced') {
+      fetchDocs();
+    }
+  }, [activeTab, fetchDocs]);
 
   const handlePyqUploadComplete = (doc: DocumentResponse) => {
     setDocuments((prev) => [doc, ...prev]);
@@ -88,17 +79,9 @@ export default function SprintPage() {
   };
 
   const handlePyqReady = (statusDoc: DocumentStatusResponse) => {
-    setDocuments((prev) =>
-      prev.map((d) =>
-        d.id === statusDoc.id
-          ? ({ ...d, ...statusDoc } as DocumentResponse)
-          : d
-      )
-    );
+    setDocuments((prev) => prev.map((d) => (d.id === statusDoc.id ? ({ ...d, ...statusDoc } as DocumentResponse) : d)));
     setProcessingPyqId(null);
-    if (statusDoc.status === "ready") {
-      setPyqDocId(statusDoc.id);
-    }
+    if (statusDoc.status === "ready") setPyqDocId(statusDoc.id);
   };
 
   const handleSyllabusUploadComplete = (doc: DocumentResponse) => {
@@ -107,353 +90,223 @@ export default function SprintPage() {
   };
 
   const handleSyllabusReady = (statusDoc: DocumentStatusResponse) => {
-    setDocuments((prev) => prev.map((doc) => doc.id === statusDoc.id ? ({ ...doc, ...statusDoc } as DocumentResponse) : doc));
+    setDocuments((prev) => prev.map((doc) => (doc.id === statusDoc.id ? ({ ...doc, ...statusDoc } as DocumentResponse) : doc)));
     setProcessingSyllabusId(null);
     if (statusDoc.status === "ready") setSyllabusDocId(statusDoc.id);
   };
 
-  const handleGenerate = async () => {
-    if (!syllabusDocId || !pyqDocId || !deadline) return;
+  const handleGenerateQuick = async () => {
+    if (!topicName.trim() || !quickDeadline) return;
+    setQuickError(null);
     try {
-      setGenerating(true);
-      const res = await generateSprint(syllabusDocId, pyqDocId, deadline, availableHoursPerDay, supportingFile);
+      setGeneratingQuick(true);
+      const res = await generateSprintFromTopic(topicName, quickDeadline, quickHours);
       router.push(`/sprint/${res.id}`);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to generate sprint";
-      alert(message);
-      setGenerating(false);
+      setQuickError(err instanceof Error ? err.message : "Failed to generate quick sprint");
+      setGeneratingQuick(false);
     }
   };
 
-  /* ── mobile menu ────────────────────────────────────────────── */
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  /* ── scroll ref ─────────────────────────────────────────────── */
-  const contentRef = useRef<HTMLDivElement>(null);
-  const scrollToContent = () => {
-    contentRef.current?.scrollIntoView({ behavior: "smooth" });
+  const handleGenerateAdvanced = async () => {
+    if (!syllabusDocId || !pyqDocId || !deadline) return;
+    setAdvancedError(null);
+    try {
+      setGeneratingAdvanced(true);
+      const res = await generateSprint(syllabusDocId, pyqDocId, deadline, availableHoursPerDay, supportingFile);
+      router.push(`/sprint/${res.id}`);
+    } catch (err: unknown) {
+      setAdvancedError(err instanceof Error ? err.message : "Failed to generate advanced sprint");
+      setGeneratingAdvanced(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black">
-      {/* ─────────────────────── HERO VIEWPORT ─────────────────── */}
-      <div className="relative h-screen w-full overflow-hidden bg-black">
-        {/* Background video */}
-        <video
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ objectPosition: "70% center" }}
-          src={VIDEO_SRC}
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
-
-        {/* ── NAVBAR (z-30) ──────────────────────────────────── */}
-        <nav className="relative z-30 flex items-center justify-between px-6 py-5 md:px-12 lg:px-16">
-          {/* Logo + desktop nav */}
-          <div className="flex items-center gap-8">
-            <Link
-              href="/"
-              className="text-lg font-semibold tracking-tight text-white sm:text-xl"
-            >
-              LearnSync AI
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+      {/* NAVBAR */}
+      <nav className="flex items-center justify-between px-6 py-5 md:px-12 bg-white border-b border-gray-200">
+        <Link href="/" className="text-xl font-semibold tracking-tight text-indigo-600">
+          LearnSync AI
+        </Link>
+        <div className="hidden md:flex items-center gap-6">
+          {NAV_LINKS.map((link) => (
+            <Link key={link.label} href={link.href} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">
+              {link.label}
             </Link>
-            <div className="hidden items-center gap-6 md:flex">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="text-sm text-white/80 transition-colors hover:text-white"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Desktop CTA */}
-          <button
-            onClick={scrollToContent}
-            className="hidden rounded-lg bg-white px-5 py-2 text-sm font-medium text-black transition-transform hover:scale-105 md:block"
-          >
-            Let&apos;s Plan
-          </button>
-
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMobileMenuOpen((p) => !p)}
-            className="relative z-50 flex h-10 w-10 items-center justify-center md:hidden active:scale-90"
-            aria-label="Toggle menu"
-          >
-            <Menu
-              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
-                mobileMenuOpen
-                  ? "rotate-90 scale-0 opacity-0"
-                  : "rotate-0 scale-100 opacity-100"
-              }`}
-            />
-            <X
-              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
-                mobileMenuOpen
-                  ? "rotate-0 scale-100 opacity-100"
-                  : "-rotate-90 scale-0 opacity-0"
-              }`}
-            />
-          </button>
-        </nav>
-
-        {/* ── MOBILE MENU (z-20) ─────────────────────────────── */}
-        <div
-          className={`absolute inset-x-0 top-0 z-20 bg-black/98 backdrop-blur-xl transition-all duration-500 md:hidden ${
-            mobileMenuOpen
-              ? "h-screen opacity-100"
-              : "h-0 opacity-0 pointer-events-none"
-          }`}
-          style={{
-            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-          }}
-        >
-          <div
-            className={`flex h-full flex-col justify-center px-8 transition-all duration-500 ${
-              mobileMenuOpen
-                ? "opacity-100 translate-y-0 delay-100"
-                : "opacity-0 translate-y-8"
-            }`}
-          >
-            <div className="flex flex-col gap-6">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-3xl font-medium text-white/90 transition-colors hover:text-white"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  scrollToContent();
-                }}
-                className="mt-6 self-start rounded-full bg-white px-8 py-3.5 text-base font-medium text-black transition-transform hover:scale-105"
-              >
-                Let&apos;s Plan
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden">
+          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+      </nav>
 
-        {/* ── HERO CONTENT (z-10) ────────────────────────────── */}
-        <div
-          className="relative z-10 flex flex-col justify-between px-6 pb-10 pt-12 sm:pb-12 sm:pt-16 md:px-12 md:pb-16 md:pt-20 lg:px-16"
-          style={{ height: "calc(100vh - 80px)" }}
-        >
-          {/* Top: headline */}
-          <div className="max-w-3xl">
-            <p
-              className="mb-4 text-xs text-white/90 sm:mb-6 sm:text-sm"
-              style={{ animation: "fadeSlideUp 0.8s ease 0.2s both" }}
-            >
-              AI-Powered Sprint Planning
-            </p>
-            <h1
-              className="text-3xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
-              style={{ animation: "fadeSlideUp 0.8s ease 0.4s both" }}
-            >
-              Plan smarter,
-              <br />
-              study faster,
-              <br />
-              ace every exam.
-            </h1>
-          </div>
+      {/* MOBILE MENU */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white border-b border-gray-200 p-4 flex flex-col gap-4 shadow-sm">
+          {NAV_LINKS.map((link) => (
+            <Link key={link.label} href={link.href} onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-gray-800">
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      )}
 
-          {/* Bottom: subtitle + CTA */}
-          <div>
-            <p
-              className="mb-5 max-w-sm text-sm leading-relaxed text-white/60 sm:mb-6 sm:max-w-lg sm:text-base md:text-lg"
-              style={{ animation: "fadeSlideUp 0.8s ease 0.7s both" }}
-            >
-              Turn your syllabus and past papers into an AI‑optimized study
-              sprint — built around your deadline and what matters most.
-            </p>
+      {/* HERO SECTION */}
+      <section className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-16 border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 mb-6">
+            Sprint Planner
+          </h1>
+          <p className="text-lg text-gray-700 max-w-2xl mx-auto">
+            Generate an optimized study plan based on your topics, syllabus, and previous year questions (PYQs). Let AI organize your success.
+          </p>
+        </div>
+      </section>
+
+      {/* PLANNER TABS */}
+      <div className="max-w-3xl mx-auto px-6 py-12">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="flex border-b border-gray-200">
             <button
-              onClick={scrollToContent}
-              className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-black transition-transform hover:scale-105 sm:px-6 sm:py-3"
-              style={{ animation: "fadeSlideUp 0.8s ease 0.9s both" }}
+              onClick={() => setActiveTab('quick')}
+              className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'quick' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600' : 'text-gray-600 hover:bg-gray-50'}`}
             >
-              Start Planning
-              <ArrowRight size={16} />
+              Quick Mode
+            </button>
+            <button
+              onClick={() => setActiveTab('advanced')}
+              className={`flex-1 py-4 text-center font-medium transition-colors ${activeTab === 'advanced' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              Advanced Mode
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* ──────────────── SPRINT PLANNER CONTENT ───────────────── */}
-      <div ref={contentRef} className="relative z-10 bg-white">
-        <div className="mx-auto max-w-3xl space-y-12 px-6 py-16 sm:px-8 md:px-10 pb-20">
-          <div>
-            <h2 className="text-3xl font-bold mb-2 text-gray-900">
-              Sprint Planner
-            </h2>
-            <p className="text-gray-600">
-              Generate an optimized study plan based on your syllabus and
-              previous year questions (PYQs).
-            </p>
-          </div>
-
-          {/* Step 1 */}
-          <section
-            className={`border rounded-xl p-6 ${
-              syllabusDocId
-                ? "border-green-500 bg-green-50"
-                : "border-gray-200 bg-white"
-            }`}
-          >
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              Step 1: Select Syllabus Document
-              {syllabusDocId && (
-                <span className="text-green-600 text-sm font-normal">
-                  ✓ Selected
-                </span>
-              )}
-            </h3>
-            {loadingDocs ? (
-              <p className="text-gray-500">Loading documents...</p>
-            ) : documentsError ? (
-              <div className="text-red-600">
-                <p>{documentsError}</p>
-                <button onClick={fetchDocs} className="mt-2 underline">Try again</button>
+          <div className="p-6 md:p-8">
+            {activeTab === 'quick' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Quick Sprint Plan</h2>
+                {quickError && (
+                  <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg">
+                    {quickError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Topic / Subject</label>
+                  <input
+                    type="text"
+                    value={topicName}
+                    onChange={(e) => setTopicName(e.target.value)}
+                    placeholder="e.g. Data Structures and Algorithms"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Target Exam Date</label>
+                    <input
+                      type="date"
+                      min={minDate}
+                      value={quickDeadline}
+                      onChange={(e) => setQuickDeadline(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Hours available per day</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={24}
+                      value={quickHours}
+                      onChange={(e) => setQuickHours(Number(e.target.value) || 1)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleGenerateQuick}
+                  disabled={!topicName.trim() || !quickDeadline || generatingQuick}
+                  className="w-full mt-4 bg-indigo-600 text-white rounded-lg py-3 font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                >
+                  {generatingQuick ? "Generating Plan..." : "Generate Sprint Plan"}
+                </button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {!syllabusDocId && !processingSyllabusId && (
-                  <UploadZone onUploadComplete={handleSyllabusUploadComplete} />
+            )}
+
+            {activeTab === 'advanced' && (
+              <div className="space-y-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Advanced Plan via Documents</h2>
+                {advancedError && (
+                  <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg">
+                    {advancedError}
+                  </div>
                 )}
-                {processingSyllabusId && (
-                  <ProcessingStatus documentId={processingSyllabusId} onReady={handleSyllabusReady} />
-                )}
-                {readyDocuments.length > 0 && (
-                  <>
-                    <p className="text-sm font-medium text-gray-500">Or select an existing ready document</p>
-                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                      {readyDocuments.map((doc) => (
-                        <div key={doc.id} onClick={() => setSyllabusDocId(doc.id)} className={`cursor-pointer transition-colors ${syllabusDocId === doc.id ? "ring-2 ring-blue-500" : "hover:bg-gray-50"}`}>
-                          <DocumentCard document={doc} onGenerateCourse={() => {}} />
+                
+                {/* Step 1 */}
+                <section className={`border rounded-xl p-5 ${syllabusDocId ? "border-green-300 bg-green-50" : "border-gray-200"}`}>
+                  <h3 className="font-semibold mb-3 flex justify-between">
+                    Step 1: Syllabus Document
+                    {syllabusDocId && <span className="text-green-600 text-sm">✓ Selected</span>}
+                  </h3>
+                  {loadingDocs ? (
+                    <p className="text-gray-600 text-sm">Loading documents...</p>
+                  ) : documentsError ? (
+                    <div className="text-red-600 text-sm"><p>{documentsError}</p><button onClick={fetchDocs} className="underline">Retry</button></div>
+                  ) : (
+                    <div className="space-y-3">
+                      {!syllabusDocId && !processingSyllabusId && <UploadZone onUploadComplete={handleSyllabusUploadComplete} />}
+                      {processingSyllabusId && <ProcessingStatus documentId={processingSyllabusId} onReady={handleSyllabusReady} />}
+                      {readyDocuments.length > 0 && !syllabusDocId && (
+                        <div className="mt-4">
+                          <p className="text-sm font-medium text-gray-700 mb-2">Or select existing:</p>
+                          <div className="max-h-40 overflow-y-auto space-y-2 pr-2">
+                            {readyDocuments.map((doc) => (
+                              <div key={doc.id} onClick={() => setSyllabusDocId(doc.id)} className="cursor-pointer hover:bg-gray-50 border border-gray-100 rounded-lg p-2">
+                                <p className="text-sm font-medium truncate">{doc.filename}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </>
-                )}
+                  )}
+                </section>
+
+                {/* Step 2 */}
+                <section className={`border rounded-xl p-5 ${pyqDocId ? "border-green-300 bg-green-50" : "border-gray-200"} ${!syllabusDocId ? "opacity-50 pointer-events-none" : ""}`}>
+                  <h3 className="font-semibold mb-3 flex justify-between">
+                    Step 2: PYQ Document (Past Papers)
+                    {pyqDocId && <span className="text-green-600 text-sm">✓ Selected</span>}
+                  </h3>
+                  {!pyqDocId && !processingPyqId && <UploadZone onUploadComplete={handlePyqUploadComplete} />}
+                  {processingPyqId && <ProcessingStatus documentId={processingPyqId} onReady={handlePyqReady} />}
+                </section>
+
+                {/* Step 3 */}
+                <section className={`border rounded-xl p-5 ${deadline ? "border-green-300 bg-green-50" : "border-gray-200"} ${!pyqDocId ? "opacity-50 pointer-events-none" : ""}`}>
+                  <h3 className="font-semibold mb-3">Step 3: Exam Details</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Deadline</label>
+                      <input type="date" min={minDate} value={deadline} onChange={(e) => setDeadline(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Hours/day</label>
+                      <input type="number" min={1} max={24} value={availableHoursPerDay} onChange={(e) => setAvailableHoursPerDay(Number(e.target.value) || 1)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                  </div>
+                </section>
+
+                <button
+                  onClick={handleGenerateAdvanced}
+                  disabled={!syllabusDocId || !pyqDocId || !deadline || generatingAdvanced}
+                  className="w-full bg-indigo-600 text-white rounded-lg py-3 font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                >
+                  {generatingAdvanced ? "Generating Plan..." : "Generate Sprint Plan"}
+                </button>
               </div>
             )}
-          </section>
-
-          {/* Step 2 */}
-          <section
-            className={`border rounded-xl p-6 ${
-              pyqDocId
-                ? "border-green-500 bg-green-50"
-                : "border-gray-200 bg-white"
-            } ${!syllabusDocId ? "opacity-50 pointer-events-none" : ""}`}
-          >
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              Step 2: Upload PYQ Document
-              {pyqDocId && (
-                <span className="text-green-600 text-sm font-normal">
-                  ✓ Ready
-                </span>
-              )}
-            </h3>
-            {!pyqDocId && !processingPyqId && (
-              <UploadZone onUploadComplete={handlePyqUploadComplete} />
-            )}
-            {processingPyqId && (
-              <div className="mt-4">
-                <ProcessingStatus
-                  documentId={processingPyqId}
-                  onReady={handlePyqReady}
-                />
-              </div>
-            )}
-            {pyqDocId && (
-              <p className="text-sm text-gray-700">
-                PYQ Document selected. ID:{" "}
-                <code className="bg-gray-100 px-1 rounded">{pyqDocId}</code>
-              </p>
-            )}
-          </section>
-
-          {/* Step 3 */}
-          <section
-            className={`border rounded-xl p-6 ${
-              deadline
-                ? "border-green-500 bg-green-50"
-                : "border-gray-200 bg-white"
-            } ${!pyqDocId ? "opacity-50 pointer-events-none" : ""}`}
-          >
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              Step 3: Set Exam Deadline
-              {deadline && (
-                <span className="text-green-600 text-sm font-normal">
-                  ✓ Set
-                </span>
-              )}
-            </h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <input
-                type="date"
-                min={minDate}
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
-              />
-              {daysRemaining !== null && (
-                <span className="text-sm font-medium text-blue-600">
-                  {daysRemaining} days remaining
-                </span>
-              )}
-              <label className="flex flex-col gap-2 text-sm font-medium text-gray-700">
-                Available study hours per day
-                <input
-                  type="number"
-                  min={1}
-                  max={24}
-                  value={availableHoursPerDay}
-                  onChange={(event) => setAvailableHoursPerDay(Number(event.target.value) || 1)}
-                  className="rounded-lg border border-gray-300 px-4 py-2 font-normal"
-                />
-              </label>
-            </div>
-          </section>
-
-          {/* Step 4 */}
-          <section className="pt-6">
-            <label className="mb-5 flex flex-col gap-2 text-sm font-semibold text-gray-700">
-              Supporting study document
-              <input
-                type="file"
-                accept=".pdf,.doc,.txt"
-                onChange={(event) => setSupportingFile(event.target.files?.[0] ?? null)}
-                className="rounded-lg border border-gray-300 bg-white p-3 font-normal"
-              />
-              <span className="font-normal text-gray-500">
-                {supportingFile ? `${supportingFile.name} selected` : "Optional PDF, DOC, or TXT attachment"}
-              </span>
-            </label>
-            <button
-              onClick={handleGenerate}
-              disabled={
-                !syllabusDocId || !pyqDocId || !deadline || generating
-              }
-              className="w-full py-4 px-6 bg-black hover:bg-gray-900 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-lg font-semibold rounded-xl shadow-sm transition-colors flex justify-center items-center gap-2"
-            >
-              {generating ? "Generating Plan..." : "Generate Sprint Plan"}
-            </button>
-          </section>
+          </div>
         </div>
       </div>
     </div>

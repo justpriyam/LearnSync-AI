@@ -57,7 +57,7 @@ export default function SprintDashboard({ sprint }: Props) {
               </div>
               <div className="p-6 space-y-4">
                 {highPriority.length === 0 && lowPriority.length === 0 && (
-                  <p className="text-gray-500 italic">No topics assigned for this day.</p>
+                  <p className="text-gray-700 italic">No topics assigned for this day.</p>
                 )}
                 
                 {highPriority.length > 0 && (
@@ -70,7 +70,7 @@ export default function SprintDashboard({ sprint }: Props) {
 
                 {lowPriority.length > 0 && (
                   <div className="mt-6">
-                    <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Low Priority / Optional</h4>
+                    <h4 className="text-sm font-medium text-gray-700 uppercase tracking-wider mb-3">Low Priority / Optional</h4>
                     <div className="space-y-2">
                       {lowPriority.map(topic => (
                         <TopicCard key={topic.id} topic={topic} />
@@ -98,10 +98,10 @@ function TopicCard({ topic }: { topic: SprintTopic }) {
             {topic.topic_title}
           </h4>
           <div className="mt-1 flex items-center gap-4 text-xs">
-            <span className={isLow ? 'text-gray-500' : 'text-orange-600 dark:text-orange-400 font-medium'}>
+            <span className={isLow ? 'text-gray-700' : 'text-orange-600 dark:text-orange-400 font-medium'}>
               PYQ Frequency: {topic.pyq_frequency}
             </span>
-            <span className="text-gray-500">
+            <span className="text-gray-700">
               Confidence: {Math.round(topic.similarity_score * 100)}%
             </span>
           </div>

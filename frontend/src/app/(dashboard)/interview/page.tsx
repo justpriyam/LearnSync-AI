@@ -3,16 +3,12 @@
 import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Menu, X, ArrowRight } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { createTextDocument, startInterview } from "@/lib/api";
 import { InterviewStartResponse } from "@/lib/types";
 import UploadZone from "@/components/UploadZone";
 import ProcessingStatus from "@/components/ProcessingStatus";
 import InterviewSession from "@/components/InterviewSession";
-
-/* ─── constants ──────────────────────────────────────────────── */
-const VIDEO_SRC =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4";
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
@@ -21,78 +17,41 @@ const NAV_LINKS = [
   { label: "Mock Interview", href: "/interview" },
 ];
 
-const EASING_PRIMARY = "cubic-bezier(.16,1,.3,1)";
-const EASING_SOFT = "cubic-bezier(.22,1,.36,1)";
-
-/* ─── Chip icons (filled currentColor blobs) ─────────────────── */
-function ResumeIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2.5L17.5 9H13V4.5zM8 13h8v2H8v-2zm0 4h5v2H8v-2z" />
-    </svg>
-  );
-}
-
-function BriefcaseIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 0h-4V4h4v2z" />
-    </svg>
-  );
-}
-
-function SparkIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z" />
-    </svg>
-  );
-}
-
-/* ─── Send arrow SVG ──────────────────────────────────────────── */
-function SendArrow() {
-  return (
-    <svg width={12} height={12} viewBox="0 0 24 24" fill="white">
-      <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z" />
-    </svg>
-  );
-}
-
-/* ─── Component ──────────────────────────────────────────────── */
 export default function InterviewPage() {
   const router = useRouter();
 
-  /* ── interview state ────────────────────────────────────────── */
+  // interview state
   const [resumeDocId, setResumeDocId] = useState<string | null>(null);
-  const [resumeReady, setResumeReady] = useState(false);
   const [jdDocId, setJdDocId] = useState<string | null>(null);
-  const [jdReady, setJdReady] = useState(false);
   const [jdInputMode, setJdInputMode] = useState<"pdf" | "text">("pdf");
-  const [inputType, setInputType] = useState("pdf");
   const [jdText, setJdText] = useState("");
+  
   const [isCreatingJd, setIsCreatingJd] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-  const [sessionInfo, setSessionInfo] =
-    useState<InterviewStartResponse | null>(null);
+  
+  const [sessionInfo, setSessionInfo] = useState<InterviewStartResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // nav state
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleStart = async () => {
     if (!resumeDocId || !jdDocId) return;
+    
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       const unlockUtterance = new SpeechSynthesisUtterance(" ");
       unlockUtterance.volume = 0;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(unlockUtterance);
     }
+    
     setIsStarting(true);
     setError(null);
     try {
       const res = await startInterview(resumeDocId, jdDocId);
       setSessionInfo(res);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to start interview";
-      setError(message);
+      setError(err instanceof Error ? err.message : "Failed to start interview");
     } finally {
       setIsStarting(false);
     }
@@ -118,19 +77,9 @@ export default function InterviewPage() {
     }
   };
 
-  /* ── mobile menu ────────────────────────────────────────────── */
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  /* ── scroll ref ─────────────────────────────────────────────── */
-  const contentRef = useRef<HTMLDivElement>(null);
-  const scrollToContent = () => {
-    contentRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  /* ── if session active, show interview (no hero) ────────────── */
   if (sessionInfo) {
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
+      <div className="min-h-screen bg-gray-50 text-gray-900 font-sans pb-16">
         <div className="max-w-4xl mx-auto py-8 px-6">
           <InterviewSession
             sessionId={sessionInfo.session_id}
@@ -144,477 +93,133 @@ export default function InterviewPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: "#0a0d12" }}>
-      {/* ─────────────────────── HERO VIEWPORT ─────────────────── */}
-      <div className="relative h-screen w-full overflow-hidden" style={{ background: "#0a0d12" }}>
-        {/* Background video */}
-        <video
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ objectPosition: "70% center", zIndex: 0 }}
-          src={VIDEO_SRC}
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
-
-        {/* ── NAVBAR (z-30) ──────────────────────────────────── */}
-        <nav
-          className="relative z-30 flex items-center justify-between px-6 py-5 md:px-12 lg:px-16"
-          style={{
-            animation: `e-settle-down .58s ${EASING_SOFT} .06s both`,
-          }}
-        >
-          {/* Brand */}
-          <Link href="/" className="flex items-center gap-3">
-            {/* Mark */}
-            <svg width={34} height={34} viewBox="0 0 34 34">
-              <circle cx={17} cy={17} r={17} fill="#9C86CE" />
-              <circle cx={17} cy={17} r={8.6} fill="#FFFFFF" />
-              <circle cx={17} cy={17} r={3.7} fill="#151519" />
-            </svg>
-            <span
-              className="text-lg font-medium tracking-tight text-white sm:text-xl"
-              style={{
-                textShadow: "0 1px 10px rgba(0,0,0,.30)",
-                letterSpacing: "-0.0154em",
-                transform: "translateY(1px)",
-              }}
-            >
-              LearnSync AI
-            </span>
-          </Link>
-
-          {/* Desktop nav links */}
-          <div
-            className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-10 md:flex"
-          >
-            {NAV_LINKS.map((link, i) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="text-sm text-white transition-opacity hover:opacity-70"
-                style={{
-                  textShadow: "0 1px 12px rgba(0,0,0,.32)",
-                  letterSpacing: "-0.0115em",
-                  animation: `e-settle-down .50s ${EASING_SOFT} ${0.16 + i * 0.05}s both`,
-                }}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Desktop CTA */}
-          <button
-            onClick={scrollToContent}
-            className="hidden rounded-xl px-5 py-2 text-sm font-medium text-white transition-all hover:brightness-[1.16] active:translate-y-px md:block"
-            style={{
-              background: "linear-gradient(180deg, #3d3d3f 0%, #1d1d20 100%)",
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,.10), 0 2px 14px rgba(0,0,0,.28)",
-              letterSpacing: "-0.0127em",
-              fontWeight: 520,
-              animation: `e-settle-down .55s ${EASING_SOFT} .34s both`,
-            }}
-          >
-            Get Started
-          </button>
-
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMobileMenuOpen((p) => !p)}
-            className="relative z-50 flex h-10 w-10 items-center justify-center rounded-xl md:hidden active:scale-90"
-            style={{
-              background: "rgba(255,255,255,.10)",
-              border: "1px solid rgba(255,255,255,.14)",
-            }}
-            aria-label="Toggle menu"
-          >
-            <Menu
-              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
-                mobileMenuOpen
-                  ? "rotate-90 scale-0 opacity-0"
-                  : "rotate-0 scale-100 opacity-100"
-              }`}
-            />
-            <X
-              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
-                mobileMenuOpen
-                  ? "rotate-0 scale-100 opacity-100"
-                  : "-rotate-90 scale-0 opacity-0"
-              }`}
-            />
-          </button>
-        </nav>
-
-        {/* ── MOBILE MENU ────────────────────────────────────── */}
-        <div
-          className={`absolute inset-x-0 top-0 z-20 backdrop-blur-xl transition-all md:hidden ${
-            mobileMenuOpen
-              ? "h-screen opacity-100"
-              : "h-0 opacity-0 pointer-events-none"
-          }`}
-          style={{
-            background: "rgba(24,24,27,.86)",
-            transitionDuration: "500ms",
-            transitionTimingFunction: "cubic-bezier(.4,0,.2,1)",
-          }}
-        >
-          <div
-            className={`flex h-full flex-col justify-center px-8 transition-all duration-500 ${
-              mobileMenuOpen
-                ? "opacity-100 translate-y-0 delay-100"
-                : "opacity-0 translate-y-8"
-            }`}
-          >
-            <div className="flex flex-col gap-6">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-3xl font-medium text-white/90 transition-colors hover:text-white"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  scrollToContent();
-                }}
-                className="mt-6 self-start rounded-full bg-white px-8 py-3.5 text-base font-medium text-black transition-transform hover:scale-105"
-              >
-                Get Started
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+      {/* NAVBAR */}
+      <nav className="flex items-center justify-between px-6 py-5 md:px-12 bg-white border-b border-gray-200">
+        <Link href="/" className="text-xl font-semibold tracking-tight text-indigo-600">
+          LearnSync AI
+        </Link>
+        <div className="hidden md:flex items-center gap-6">
+          {NAV_LINKS.map((link) => (
+            <Link key={link.label} href={link.href} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">
+              {link.label}
+            </Link>
+          ))}
         </div>
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden">
+          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+      </nav>
 
-        {/* ── HERO CONTENT (z-10) ────────────────────────────── */}
-        <div
-          className="relative z-10 flex flex-col justify-between px-6 pb-10 pt-8 sm:pb-12 sm:pt-12 md:px-12 md:pb-16 md:pt-16 lg:px-16"
-          style={{ height: "calc(100vh - 80px)" }}
-        >
-          {/* Top: headline */}
-          <div className="flex flex-col items-center justify-center flex-1 text-center">
-            <h1
-              className="text-3xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
-              style={{
-                letterSpacing: "0.0018em",
-                textShadow: "0 2px 22px rgba(0,0,0,.30)",
-                animation: `e-focus 1.0s ${EASING_PRIMARY} .30s both`,
-              }}
-            >
-              Ace your next
-              <br />
-              interview with AI.
-            </h1>
+      {/* MOBILE MENU */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white border-b border-gray-200 p-4 flex flex-col gap-4 shadow-sm">
+          {NAV_LINKS.map((link) => (
+            <Link key={link.label} href={link.href} onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-gray-800">
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      )}
 
-            {/* Composer card */}
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="mt-10 w-full sm:mt-12"
-              style={{
-                maxWidth: "min(100%, 708px)",
-                animation: `e-panel .90s ${EASING_PRIMARY} .62s both`,
-              }}
-            >
-              <div
-                className="relative rounded-2xl sm:rounded-3xl"
-                style={{
-                  background: "rgba(41,41,43,.955)",
-                  backdropFilter: "blur(26px) saturate(112%)",
-                  boxShadow:
-                    "inset 0 0 0 1px rgba(214,228,255,.14), 0 22px 60px rgba(0,0,0,.30)",
-                  padding: "clamp(15px, 2vw, 24px)",
-                }}
-              >
-                {/* Placeholder text */}
-                <p
-                  className="truncate text-left"
-                  style={{
-                    color: "#8B8C8E",
-                    fontSize: "clamp(10px, 1.35vw, 14px)",
-                    fontWeight: 400,
-                    lineHeight: 1.35,
-                    letterSpacing: "0.007em",
-                    marginBottom: "clamp(20px, 3.2vh, 44px)",
-                    animation: `e-populate .50s ${EASING_SOFT} .88s both`,
-                  }}
+      {/* HEADER SECTION */}
+      <section className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-16 border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 mb-6">
+            AI Mock Interviewer
+          </h1>
+          <p className="text-lg text-gray-700 max-w-2xl mx-auto">
+            Upload your resume and the job description, and practice your technical and behavioral skills with our adaptive AI interviewer.
+          </p>
+        </div>
+      </section>
+
+      {/* SETUP CONTENT */}
+      <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
+        {error && (
+          <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* STEP 1: RESUME */}
+        <section className={`border rounded-xl p-6 md:p-8 ${resumeDocId ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}`}>
+          <h2 className="text-2xl font-bold mb-4 flex items-center justify-between">
+            Step 1: Upload Resume
+            {resumeDocId && <span className="text-green-600 text-sm font-semibold">✓ Ready</span>}
+          </h2>
+          {!resumeDocId ? (
+            <UploadZone onUploadComplete={(doc) => setResumeDocId(doc.id)} />
+          ) : (
+            <p className="text-gray-700">Resume attached. ID: <code className="bg-white px-1 py-0.5 rounded border border-gray-200 text-sm">{resumeDocId}</code></p>
+          )}
+        </section>
+
+        {/* STEP 2: JOB DESCRIPTION */}
+        <section className={`border rounded-xl overflow-hidden ${jdDocId ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"} ${!resumeDocId ? "opacity-50 pointer-events-none" : ""}`}>
+          <div className="p-6 md:p-8 border-b border-gray-100">
+            <h2 className="text-2xl font-bold flex items-center justify-between">
+              Step 2: Job Description
+              {jdDocId && <span className="text-green-600 text-sm font-semibold">✓ Ready</span>}
+            </h2>
+          </div>
+
+          {!jdDocId ? (
+            <>
+              <div className="flex border-b border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => setJdInputMode('pdf')}
+                  className={`flex-1 py-3 font-medium text-sm transition-colors ${jdInputMode === 'pdf' ? 'bg-white text-indigo-700 border-b-2 border-indigo-600' : 'text-gray-600'}`}
                 >
-                  Upload your resume and job description to start a mock
-                  interview...
-                </p>
-
-                {/* Toolbar: chips left, controls right */}
-                <div
-                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-0"
-                  style={{
-                    animation: `e-populate .50s ${EASING_SOFT} .94s both`,
-                  }}
+                  Upload PDF
+                </button>
+                <button
+                  onClick={() => setJdInputMode('text')}
+                  className={`flex-1 py-3 font-medium text-sm transition-colors ${jdInputMode === 'text' ? 'bg-white text-indigo-700 border-b-2 border-indigo-600' : 'text-gray-600'}`}
                 >
-                  {/* Chips */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {[
-                      {
-                        label: "Upload Resume",
-                        Icon: ResumeIcon,
-                      },
-                      {
-                        label: "Upload JD",
-                        Icon: BriefcaseIcon,
-                      },
-                      {
-                        label: "AI Interview",
-                        Icon: SparkIcon,
-                      },
-                    ].map(({ label, Icon }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={scrollToContent}
-                        className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-                        style={{
-                          height: 30,
-                          color: "#909093",
-                          background:
-                            "linear-gradient(180deg, rgba(255,255,255,.088) 0%, rgba(255,255,255,.050) 45%, rgba(255,255,255,.038) 100%)",
-                          border: "1px solid rgba(255,255,255,.05)",
-                          fontSize: "clamp(9px, 1.12vw, 12.5px)",
-                          letterSpacing: "normal",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background =
-                            "linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.07))";
-                          e.currentTarget.style.color = "#c8c8cb";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background =
-                            "linear-gradient(180deg, rgba(255,255,255,.088) 0%, rgba(255,255,255,.050) 45%, rgba(255,255,255,.038) 100%)";
-                          e.currentTarget.style.color = "#909093";
-                        }}
-                      >
-                        <Icon size={12} />
-                        <span style={{ transform: "translateY(1px)" }}>
-                          {label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                  Paste Text
+                </button>
+              </div>
 
-                  {/* Right cluster: model label + attach + send */}
-                  <div className="flex items-center sm:ml-auto">
-                    {/* Model label */}
-                    <span
-                      className="inline-flex items-center gap-1.5"
-                      style={{
-                        color: "#98999C",
-                        fontSize: "clamp(9.8px, 1.12vw, 12.5px)",
-                        fontWeight: 400,
-                        letterSpacing: "normal",
-                      }}
-                    >
-                      AI Mentor
-                      <svg
-                        width={7}
-                        height={7}
-                        viewBox="0 0 10 6"
-                        fill="currentColor"
-                      >
-                        <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth={1.5} fill="none" />
-                      </svg>
-                    </span>
+              <div className="p-6 md:p-8">
+                {jdInputMode === 'pdf' && (
+                  <UploadZone onUploadComplete={(doc) => setJdDocId(doc.id)} />
+                )}
 
-                    {/* Attach (paperclip) */}
-                    <svg
-                      className="transition-colors hover:text-white"
-                      style={{
-                        color: "#A9AAAD",
-                        marginLeft: "clamp(9px, 1.4vw, 20px)",
-                        cursor: "pointer",
-                      }}
-                      width={20}
-                      height={20}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                    </svg>
-
-                    {/* Send button */}
+                {jdInputMode === 'text' && (
+                  <div className="space-y-4">
+                    <textarea
+                      value={jdText}
+                      onChange={(e) => setJdText(e.target.value)}
+                      placeholder="Paste the job description or requirements here..."
+                      className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none bg-white"
+                    />
                     <button
-                      type="button"
-                      onClick={scrollToContent}
-                      className="flex items-center justify-center rounded-full transition-all hover:brightness-[1.07] active:scale-95"
-                      style={{
-                        width: "clamp(32px, 3.5vw, 38px)",
-                        height: "clamp(32px, 3.5vw, 38px)",
-                        marginLeft: "clamp(9px, 1.3vw, 18px)",
-                        background:
-                          "linear-gradient(163deg, #FBBC94 0%, #F49D70 46%, #E88654 100%)",
-                        boxShadow: "0 3px 12px rgba(210,110,60,.34)",
-                        animation: `e-send .50s ${EASING_PRIMARY} 1.00s both`,
-                      }}
-                      aria-label="Start interview"
+                      onClick={handleJdTextSubmit}
+                      disabled={jdText.trim().length < 20 || isCreatingJd}
+                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium transition-colors"
                     >
-                      <SendArrow />
+                      {isCreatingJd ? "Processing..." : "Use this text"}
                     </button>
                   </div>
-                </div>
-              </div>
-            </form>
-          </div>
-
-          {/* Bottom: proof */}
-          <div className="flex flex-col items-center gap-4 pt-8">
-            <p
-              className="text-center text-sm text-white/95"
-              style={{
-                fontWeight: 480,
-                letterSpacing: "0.0065em",
-                textShadow: "0 1px 12px rgba(0,0,0,.35)",
-                animation: `e-settle-up .55s ${EASING_SOFT} 1.08s both`,
-              }}
-            >
-              AI-powered interview preparation
-            </p>
-            <div
-              className="flex items-center gap-8 text-white/80 sm:gap-12"
-              style={{
-                animation: `e-settle-up .55s ${EASING_SOFT} 1.16s both`,
-              }}
-            >
-              <span className="text-xs font-medium tracking-wide uppercase opacity-60">
-                Resume Analysis
-              </span>
-              <span className="text-xs font-medium tracking-wide uppercase opacity-60">
-                Real-time Feedback
-              </span>
-              <span className="text-xs font-medium tracking-wide uppercase opacity-60 hidden sm:block">
-                Performance Report
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ──────────── INTERVIEW SETUP CONTENT ──────────────────── */}
-      <div ref={contentRef} className="relative z-10 bg-white">
-        <div className="mx-auto max-w-3xl space-y-8 px-6 py-16 sm:px-8 md:px-10 pb-20">
-          <div>
-            <h2 className="text-3xl font-bold mb-2 text-gray-900">
-              Mock Interview Mentor
-            </h2>
-            <p className="text-gray-600">
-              Practice your interview skills with an AI mentor tailored to your
-              resume and the job description.
-            </p>
-          </div>
-
-          {/* Step 1: Resume Upload */}
-          <section
-            className={`border rounded-xl p-6 ${
-              resumeDocId
-                ? "border-green-500 bg-green-50"
-                : "border-gray-200 bg-white"
-            }`}
-          >
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              Step 1: Upload Resume
-              {resumeReady && (
-                <span className="text-green-600 text-sm font-normal">
-                  ✓ Ready
-                </span>
-              )}
-            </h3>
-            {!resumeDocId ? (
-              <UploadZone
-                onUploadComplete={(doc) => setResumeDocId(doc.id)}
-              />
-            ) : !resumeReady ? (
-              <ProcessingStatus
-                documentId={resumeDocId}
-                onReady={() => setResumeReady(true)}
-              />
-            ) : (
-              <p className="text-sm text-gray-700">
-                Resume uploaded and processed successfully.
-              </p>
-            )}
-          </section>
-
-          {/* Step 2: JD Upload */}
-          <section
-            className={`border rounded-xl p-6 ${
-              jdDocId
-                ? "border-green-500 bg-green-50"
-                : "border-gray-200 bg-white"
-            } ${!resumeReady ? "opacity-50 pointer-events-none" : ""}`}
-          >
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              Step 2: Upload Job Description (JD)
-              {jdReady && (
-                <span className="text-green-600 text-sm font-normal">
-                  ✓ Ready
-                </span>
-              )}
-            </h3>
-            {!jdDocId ? (
-              <>
-                <div className="mb-4 flex gap-2">
-                  <button type="button" onClick={() => { setInputType("pdf"); setJdInputMode("pdf"); }} className={`rounded-lg px-4 py-2 text-sm font-medium ${inputType === "pdf" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700"}`}>Upload PDF</button>
-                  <button type="button" onClick={() => { setInputType("text"); setJdInputMode("text"); }} className={`rounded-lg px-4 py-2 text-sm font-medium ${inputType === "text" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700"}`}>Paste text</button>
-                </div>
-                {jdInputMode === "pdf" ? (
-                  <UploadZone onUploadComplete={(doc) => setJdDocId(doc.id)} />
-                ) : (
-                  <div className="space-y-3">
-                    <textarea value={jdText} onChange={(event) => setJdText(event.target.value)} placeholder="Paste the job description here..." className="min-h-48 w-full rounded-lg border border-gray-300 p-4" />
-                    <button type="button" onClick={handleJdTextSubmit} disabled={jdText.trim().length < 20 || isCreatingJd} className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-40">{isCreatingJd ? "Processing..." : "Use this job description"}</button>
-                  </div>
                 )}
-              </>
-            ) : !jdReady ? (
-              <ProcessingStatus
-                documentId={jdDocId}
-                onReady={() => setJdReady(true)}
-              />
-            ) : (
-              <p className="text-sm text-gray-700">
-                Job Description uploaded and processed successfully.
-              </p>
-            )}
-          </section>
+              </div>
+            </>
+          ) : (
+            <div className="p-6 md:p-8">
+              <p className="text-gray-700">Job description attached. ID: <code className="bg-white px-1 py-0.5 rounded border border-gray-200 text-sm">{jdDocId}</code></p>
+            </div>
+          )}
+        </section>
 
-          {/* Start Button */}
-          <section className="pt-4">
-            <button
-              onClick={handleStart}
-              disabled={!resumeReady || !jdReady || isStarting}
-              className="w-full py-4 px-6 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-lg font-semibold rounded-xl shadow-sm transition-all flex justify-center items-center gap-2 hover:brightness-[1.1] active:translate-y-px"
-              style={{
-                background: !resumeReady || !jdReady || isStarting
-                  ? undefined
-                  : "linear-gradient(163deg, #FBBC94 0%, #F49D70 46%, #E88654 100%)",
-                boxShadow: resumeReady && jdReady && !isStarting
-                  ? "0 3px 12px rgba(210,110,60,.34)"
-                  : undefined,
-              }}
-            >
-              {isStarting ? "Starting Session..." : "Start Mock Interview"}
-              {!isStarting && <ArrowRight size={20} />}
-            </button>
-            {error && (
-              <p className="text-red-500 text-center mt-4">{error}</p>
-            )}
-          </section>
-        </div>
+        {/* START BUTTON */}
+        <button
+          onClick={handleStart}
+          disabled={!resumeDocId || !jdDocId || isStarting}
+          className="w-full py-5 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-xl font-bold rounded-xl shadow-lg transition-colors flex justify-center items-center gap-3 mt-8"
+        >
+          🎤 {isStarting ? "Preparing Session..." : "Start Mock Interview"}
+        </button>
       </div>
     </div>
   );

@@ -97,8 +97,11 @@ def generate_next_question(resume_chunks: list[dict], jd_chunks: list[dict],
     history = "\n".join([f"Q: {t['question']}\nA: {t['answer']}\nScore: {t['score']}" for t in previous_turns])
     
     prompt = f"""
-    You are an expert technical interviewer conducting an ongoing interview. 
+    You are an expert technical interviewer conducting an ongoing interview. You should feel like a friendly but professional interviewer.
     Based on the resume, job description, and previous Q&A history, generate the NEXT interview question.
+    
+    IMPORTANT: First, appreciate good points from the candidate's last answer. Then, give constructive feedback. Finally, ask the next question.
+    Combine these into a single conversational response.
     
     Target Difficulty Level: {difficulty}
     
@@ -116,7 +119,7 @@ def generate_next_question(resume_chunks: list[dict], jd_chunks: list[dict],
     Job Description Context:
     {json.dumps(jd_texts)}
     
-    Return ONLY the question string, without any prefixes, quotes, or additional text.
+    Return ONLY the conversational response string (appreciation + feedback + next question), without any prefixes, quotes, or additional text.
     """
     
     try:

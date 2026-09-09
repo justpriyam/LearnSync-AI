@@ -23,6 +23,15 @@ class TextDocumentRequest(BaseModel):
     filename: str = "job-description.txt"
     text: str
 
+class TopicCourseRequest(BaseModel):
+    topic_name: str
+    depth: str = 'intermediate'  # beginner, intermediate, advanced
+
+class TopicSprintRequest(BaseModel):
+    topic_name: str
+    deadline: str  # ISO date
+    hours_per_day: int = 4
+
 class QuizQuestionSchema(BaseModel):
     id: str
     question: str
@@ -48,6 +57,8 @@ class ModuleSchema(BaseModel):
     id: str
     title: str
     summary: str
+    lesson_content: str | None = None
+    youtube_links: str | None = None
     order_index: int
     source_chunk_ids: list[str]
     quiz_questions: list[QuizQuestionSchema]

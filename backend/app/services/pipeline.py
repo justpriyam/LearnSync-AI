@@ -10,7 +10,7 @@ from app.config import settings
 from app.services.pdf_parser import extract_text_from_pdf
 from app.services.chunker import chunk_text
 from app.services.embedder import embed_chunks, retrieve_chunks, client as chroma_client
-from app.services.generator import generate_module_outline, generate_quiz_and_cheatsheet
+from app.services.generator import generate_module_outline, generate_full_module_content, generate_topic_course_outline, generate_topic_module_content
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ def run_generation(course_id: str) -> None:
             if not assigned_chunks:
                 assigned_chunks = retrieve_chunks(document_id, f"{title} {summary}", settings.TOP_K_CHUNKS)
             
-            gen_result = generate_quiz_and_cheatsheet(title, summary, assigned_chunks)
+            gen_result = generate_full_module_content(title, summary, assigned_chunks)
             
             mod_id = str(uuid.uuid4())
             new_mod = Module(
@@ -140,6 +140,8 @@ def run_generation(course_id: str) -> None:
                 course_id=course_id,
                 title=title,
                 summary=summary,
+                lesson_content=gen_result.get("lesson_content"),
+                youtube_links=json.dumps(gen_result.get("youtube_search_queries", [])),
                 order_index=i,
                 source_chunk_ids=json.dumps([c["id"] for c in assigned_chunks])
             )
@@ -272,11 +274,150 @@ def run_sprint_generation(sprint_plan_id: str) -> None:
                 is_low_priority=topic_data['is_low_priority'],
             ))
         
-        sprint.total_days = scored[0]['total_days'] if scored else 1
+        sprint.total_days = scored[0].get('total_days', 1) if scored else 1
         sprint.status = 'ready'
         db.commit()
     except Exception as e:
         logger.exception(f"Sprint generation failed for {sprint_plan_id}")
+        sprint.status = 'failed'
+        sprint.error_message = str(e)
+        db.commit()
+        db.close()
+
+def run_topic_course_generation(course_id: str, depth: str) -> None:
+    db = SessionLocal()
+    try:
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            logger.error(f"Course {course_id} not found.")
+            return
+
+        course.status = 'generating'
+        db.commit()
+        
+        module_outlines = generate_topic_course_outline(course.topic_name, depth)
+        
+        for i, mod_outline in enumerate(module_outlines):
+            if i > 0:
+                time.sleep(1.0)
+            title = mod_outline.get("title", f"Module {i+1}")
+            summary = mod_outline.get("summary", "")
+            key_topics = mod_outline.get("key_topics", [])
+            
+            gen_result = generate_topic_module_content(course.topic_name, title, summary, key_topics, depth)
+            
+            mod_id = str(uuid.uuid4())
+            new_mod = Module(
+                id=mod_id,
+                course_id=course_id,
+                title=title,
+                summary=summary,
+                lesson_content=gen_result.get("lesson_content"),
+                youtube_links=json.dumps(gen_result.get("youtube_links", [])),
+                order_index=i,
+                source_chunk_ids="[]"
+            )
+            db.add(new_mod)
+            db.commit()
+            
+            quiz_data = gen_result.get("quiz", {}).get("questions", [])
+            for q_idx, q in enumerate(quiz_data):
+                db.add(QuizQuestion(
+                    id=str(uuid.uuid4()),
+                    module_id=mod_id,
+                    question=q.get("question", ""),
+                    options=json.dumps(q.get("options", [])),
+                    correct_answer=q.get("correct_answer", ""),
+                    explanation=q.get("explanation", ""),
+                    source_chunk_id="topic",
+                    order_index=q_idx
+                ))
+            
+            bullet_data = gen_result.get("cheatsheet", {}).get("bullets", [])
+            for b_idx, b in enumerate(bullet_data):
+                db.add(CheatSheetBullet(
+                    id=str(uuid.uuid4()),
+                    module_id=mod_id,
+                    text=b,
+                    order_index=b_idx
+                ))
+                
+            db.commit()
+
+        course.status = 'ready'
+        db.commit()
+        logger.info(f"Topic course generation successful for course {course_id}")
+
+    except Exception as e:
+        logger.exception(f"Topic course generation failed for course {course_id}")
+        course.status = 'failed'
+        course.error_message = str(e)
+        db.commit()
+    finally:
+        db.close()
+
+def run_topic_sprint_generation(sprint_plan_id: str) -> None:
+    db = SessionLocal()
+    try:
+        sprint = db.query(SprintPlan).filter(SprintPlan.id == sprint_plan_id).first()
+        if not sprint:
+            logger.error(f"Sprint {sprint_plan_id} not found.")
+            return
+
+        sprint.status = 'generating'
+        db.commit()
+
+        # Generate subtopics for the topic based on deadline and hours_per_day
+        from datetime import date
+        from app.services.generator import call_groq
+        
+        deadline_date = date.fromisoformat(sprint.deadline)
+        total_days = max(1, (deadline_date - date.today()).days)
+        sprint.total_days = total_days
+        
+        prompt = f"""You are an expert curriculum planner. Create a study sprint for the topic "{sprint.topic_name}".
+The student has {total_days} days to study, for {sprint.hours_per_day} hours per day.
+
+Generate a JSON array of {min(15, total_days * 2)} essential subtopics to cover, ordered by priority (highest priority first).
+Each subtopic should be a JSON object with:
+- "topic_title": The name of the subtopic
+- "priority_rank": Integer from 1 (highest) to N
+
+Return ONLY the JSON array."""
+
+        raw_response = call_groq(prompt, json_mode=True, system_prompt="You are an expert curriculum planner.")
+        json_str = raw_response.strip()
+        if json_str.startswith("```"):
+            lines = json_str.split("\n")
+            json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+        else:
+            start_idx = json_str.find("[")
+            end_idx = json_str.rfind("]")
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                json_str = json_str[start_idx : end_idx + 1]
+
+        subtopics = json.loads(json_str)
+        
+        for idx, t in enumerate(subtopics):
+            # assign days evenly
+            assigned_day = min((idx * total_days) // len(subtopics) + 1, total_days)
+            
+            db.add(SprintTopic(
+                id=str(uuid.uuid4()),
+                sprint_plan_id=sprint_plan_id,
+                module_id="topic",
+                topic_title=t.get("topic_title", f"Topic {idx+1}"),
+                pyq_frequency=0,
+                similarity_score=1.0,
+                priority_rank=t.get("priority_rank", idx+1),
+                assigned_day=assigned_day,
+                is_low_priority=False
+            ))
+
+        sprint.status = 'ready'
+        db.commit()
+    except Exception as e:
+        logger.exception(f"Topic sprint generation failed for {sprint_plan_id}")
         sprint.status = 'failed'
         sprint.error_message = str(e)
         db.commit()
