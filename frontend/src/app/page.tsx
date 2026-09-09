@@ -3,8 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown, Menu, X, BookOpen, Zap, Users } from "lucide-react";
 import Link from "next/link";
-import { useSession, signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 
 /* ─── constants ──────────────────────────────────────────────── */
 const VIDEO_SRC =
@@ -37,14 +35,6 @@ function LogoIcon({ className }: { className?: string }) {
 export default function HeroPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const prevOverflow = useRef("");
-  const { data: session } = useSession();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (session?.user) {
-      router.push('/dashboard');
-    }
-  }, [session, router]);
 
   /* body scroll lock */
   useEffect(() => {
@@ -99,13 +89,13 @@ export default function HeroPage() {
             </div>
 
             {/* CTA pill */}
-            <button
-              onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            <Link
+              href="/courses"
               className="self-stretch flex items-center rounded-full px-5 text-sm font-medium text-white hover:opacity-90 transition-opacity"
               style={{ background: CTA_GRADIENT }}
             >
-              Sign in
-            </button>
+              Get started
+            </Link>
           </div>
 
           {/* mobile hamburger */}
@@ -176,8 +166,9 @@ export default function HeroPage() {
 
           {/* bottom CTA */}
           <div className="mt-auto px-6 pb-10">
-            <button
-              onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            <Link
+              href="/courses"
+              onClick={() => setMenuOpen(false)}
               className="block w-full rounded-full px-5 py-3 text-sm font-medium text-white text-center hover:opacity-90 transition-opacity"
               style={{
                 background: CTA_GRADIENT,
@@ -189,8 +180,8 @@ export default function HeroPage() {
                   "opacity 400ms ease 300ms, transform 400ms ease 300ms",
               }}
             >
-              Sign in
-            </button>
+              Get started
+            </Link>
           </div>
         </div>
 
@@ -208,16 +199,10 @@ export default function HeroPage() {
 
             {/* CTA buttons */}
             <div className="mt-6 flex flex-wrap gap-3 sm:mt-8">
-              <button
-                onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
-                className="rounded-full px-6 py-3 text-sm font-medium text-white hover:opacity-90 transition-opacity"
-                style={{ background: CTA_GRADIENT }}
-              >
-                Sign in with Google
-              </button>
               <Link
                 href="/courses"
-                className="rounded-full px-6 py-3 text-sm font-medium text-white/90 border border-white/20 hover:bg-white/10 transition-colors backdrop-blur-sm"
+                className="rounded-full px-6 py-3 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+                style={{ background: CTA_GRADIENT }}
               >
                 Start learning
               </Link>

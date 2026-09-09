@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import AuthProvider from '@/components/providers/AuthProvider';
 
 export const metadata: Metadata = {
   title: 'LearnSync AI',
@@ -29,9 +28,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        {children}
       </body>
     </html>
   );

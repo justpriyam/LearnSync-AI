@@ -3,24 +3,9 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import settings
 
-# Fix Render's postgres:// -> postgresql://
-_db_url = settings.DATABASE_URL
-if _db_url.startswith("postgres://"):
-    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
-
-_connect_args = {}
-if _db_url.startswith("sqlite"):
-    _connect_args["check_same_thread"] = False
-
 engine = create_engine(
-    _db_url,
-    connect_args=_connect_args,
-    pool_pre_ping=True,
-    **({
-        "pool_size": 5,
-        "max_overflow": 10,
-        "pool_recycle": 300,
-    } if not _db_url.startswith("sqlite") else {}),
+    settings.DATABASE_URL, 
+    connect_args={"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
