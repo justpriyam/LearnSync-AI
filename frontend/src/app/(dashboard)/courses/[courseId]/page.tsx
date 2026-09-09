@@ -149,7 +149,7 @@ export default function CoursePage({
       {/* Sidebar */}
       <div className="w-full md:w-80 shrink-0 border-r border-gray-200 pr-4">
         <div className="sticky top-24">
-          <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-900 mb-4 flex items-center gap-1">
+          <button onClick={() => router.back()} className="text-sm text-gray-700 hover:text-gray-900 mb-4 flex items-center gap-1">
             &larr; Back to Courses
           </button>
           <h2 className="text-xl font-bold mb-6 line-clamp-2" title={course.title}>
@@ -268,7 +268,7 @@ export default function CoursePage({
               >
                 Previous
               </button>
-              <span className="text-sm text-gray-500">Module {currentModuleIndex + 1} of {sortedModules.length}</span>
+              <span className="text-sm text-gray-700">Module {currentModuleIndex + 1} of {sortedModules.length}</span>
               <button
                 onClick={() => selectModule(sortedModules[currentModuleIndex + 1]?.id)}
                 disabled={currentModuleIndex >= sortedModules.length - 1 || completedScores[selectedModule.id] === undefined}
@@ -286,7 +286,7 @@ export default function CoursePage({
           />
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-gray-500">
+        <div className="flex-1 flex items-center justify-center text-gray-700">
           No modules found for this course.
         </div>
       )}
