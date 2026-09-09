@@ -35,6 +35,7 @@ export default function SprintPage() {
   const [processingSyllabusId, setProcessingSyllabusId] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string>("");
   const [availableHoursPerDay, setAvailableHoursPerDay] = useState(2);
+  const [supportingFile, setSupportingFile] = useState<File | null>(null);
   const [generating, setGenerating] = useState(false);
 
   const readyDocuments = useMemo(
@@ -115,7 +116,7 @@ export default function SprintPage() {
     if (!syllabusDocId || !pyqDocId || !deadline) return;
     try {
       setGenerating(true);
-      const res = await generateSprint(syllabusDocId, pyqDocId, deadline, availableHoursPerDay);
+      const res = await generateSprint(syllabusDocId, pyqDocId, deadline, availableHoursPerDay, supportingFile);
       router.push(`/sprint/${res.id}`);
     } catch (err: unknown) {
       const message =
@@ -431,6 +432,18 @@ export default function SprintPage() {
 
           {/* Step 4 */}
           <section className="pt-6">
+            <label className="mb-5 flex flex-col gap-2 text-sm font-semibold text-gray-700">
+              Supporting study document
+              <input
+                type="file"
+                accept=".pdf,.doc,.txt"
+                onChange={(event) => setSupportingFile(event.target.files?.[0] ?? null)}
+                className="rounded-lg border border-gray-300 bg-white p-3 font-normal"
+              />
+              <span className="font-normal text-gray-500">
+                {supportingFile ? `${supportingFile.name} selected` : "Optional PDF, DOC, or TXT attachment"}
+              </span>
+            </label>
             <button
               onClick={handleGenerate}
               disabled={

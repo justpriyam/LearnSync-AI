@@ -82,6 +82,8 @@ class SprintGenerateRequest(BaseModel):
     pyq_document_id: str
     deadline: str  # ISO date string e.g. "2026-09-10"
     available_hours_per_day: int = 2
+    attachment_name: str | None = None
+    attachment_size: int | None = None
 
 class SprintTopicSchema(BaseModel):
     id: str

@@ -128,7 +128,8 @@ export async function generateSprint(
   syllabusDocId: string,
   pyqDocId: string,
   deadline: string,
-  availableHoursPerDay: number
+  availableHoursPerDay: number,
+  attachment?: File | null
 ): Promise<SprintPlanStatusResponse> {
   return fetchAPI<SprintPlanStatusResponse>('/sprint/generate', {
     method: 'POST',
@@ -138,6 +139,8 @@ export async function generateSprint(
       pyq_document_id: pyqDocId,
       deadline: deadline,
       available_hours_per_day: availableHoursPerDay,
+      attachment_name: attachment?.name ?? null,
+      attachment_size: attachment?.size ?? null,
     }),
   });
 }

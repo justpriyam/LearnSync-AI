@@ -68,6 +68,7 @@ export default function InterviewPage() {
   const [jdDocId, setJdDocId] = useState<string | null>(null);
   const [jdReady, setJdReady] = useState(false);
   const [jdInputMode, setJdInputMode] = useState<"pdf" | "text">("pdf");
+  const [inputType, setInputType] = useState("pdf");
   const [jdText, setJdText] = useState("");
   const [isCreatingJd, setIsCreatingJd] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
@@ -77,6 +78,12 @@ export default function InterviewPage() {
 
   const handleStart = async () => {
     if (!resumeDocId || !jdDocId) return;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const unlockUtterance = new SpeechSynthesisUtterance(" ");
+      unlockUtterance.volume = 0;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(unlockUtterance);
+    }
     setIsStarting(true);
     setError(null);
     try {
@@ -561,8 +568,8 @@ export default function InterviewPage() {
             {!jdDocId ? (
               <>
                 <div className="mb-4 flex gap-2">
-                  <button type="button" onClick={() => setJdInputMode("pdf")} className={`rounded-lg px-4 py-2 text-sm font-medium ${jdInputMode === "pdf" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700"}`}>Upload PDF</button>
-                  <button type="button" onClick={() => setJdInputMode("text")} className={`rounded-lg px-4 py-2 text-sm font-medium ${jdInputMode === "text" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700"}`}>Paste text</button>
+                  <button type="button" onClick={() => { setInputType("pdf"); setJdInputMode("pdf"); }} className={`rounded-lg px-4 py-2 text-sm font-medium ${inputType === "pdf" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700"}`}>Upload PDF</button>
+                  <button type="button" onClick={() => { setInputType("text"); setJdInputMode("text"); }} className={`rounded-lg px-4 py-2 text-sm font-medium ${inputType === "text" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700"}`}>Paste text</button>
                 </div>
                 {jdInputMode === "pdf" ? (
                   <UploadZone onUploadComplete={(doc) => setJdDocId(doc.id)} />
