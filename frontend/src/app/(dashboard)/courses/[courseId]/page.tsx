@@ -6,6 +6,7 @@ import { CourseResponse } from "@/lib/types";
 import ModuleList from "@/components/ModuleList";
 import QuizView from "@/components/QuizView";
 import CheatSheetDrawer from "@/components/CheatSheetDrawer";
+import CourseSummary from "@/components/CourseSummary";
 
 export default function CoursePage({
   params,
@@ -18,6 +19,8 @@ export default function CoursePage({
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isPolling, setIsPolling] = useState(true);
+  const [currentModuleIndex, setCurrentModuleIndex] = useState(0);
+  const [completedScores, setCompletedScores] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -98,7 +101,26 @@ export default function CoursePage({
     (a, b) => a.order_index - b.order_index
   );
   const selectedModule =
-    sortedModules.find((m) => m.id === selectedModuleId) || sortedModules[0];
+    sortedModules[currentModuleIndex];
+  const allModulesCompleted = sortedModules.length > 0 && sortedModules.every((module) => completedScores[module.id] !== undefined);
+
+  const selectModule = (moduleId: string) => {
+    const index = sortedModules.findIndex((module) => module.id === moduleId);
+    if (index >= 0) {
+      setCurrentModuleIndex(index);
+      setSelectedModuleId(moduleId);
+    }
+  };
+
+  const resetCourse = () => {
+    setCompletedScores({});
+    setCurrentModuleIndex(0);
+    setSelectedModuleId(sortedModules[0]?.id || null);
+  };
+
+  if (allModulesCompleted) {
+    return <CourseSummary scores={sortedModules.map((module) => completedScores[module.id])} questionCount={5} onRetake={resetCourse} />;
+  }
 
   return (
     <div className="flex flex-col md:flex-row gap-8 min-h-[calc(100vh-6rem)]">
@@ -114,7 +136,7 @@ export default function CoursePage({
           <ModuleList
             modules={sortedModules}
             selectedModuleId={selectedModule?.id || null}
-            onSelectModule={setSelectedModuleId}
+            onSelectModule={selectModule}
           />
         </div>
       </div>
@@ -161,7 +183,29 @@ export default function CoursePage({
 
           <div className="border-t border-gray-200 dark:border-gray-800 pt-10">
             <h3 className="text-2xl font-bold mb-6">Knowledge Check</h3>
-            <QuizView questions={selectedModule.quiz_questions} />
+            <QuizView
+              key={selectedModule.id}
+              questions={selectedModule.quiz_questions}
+              resetKey={selectedModule.id}
+              onComplete={(score) => setCompletedScores((previous) => ({ ...previous, [selectedModule.id]: score }))}
+            />
+            <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6 dark:border-gray-800">
+              <button
+                onClick={() => selectModule(sortedModules[currentModuleIndex - 1]?.id)}
+                disabled={currentModuleIndex === 0}
+                className="rounded-lg border border-gray-300 px-5 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-500">Module {currentModuleIndex + 1} of {sortedModules.length}</span>
+              <button
+                onClick={() => selectModule(sortedModules[currentModuleIndex + 1]?.id)}
+                disabled={currentModuleIndex >= sortedModules.length - 1 || completedScores[selectedModule.id] === undefined}
+                className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
           </div>
 
           <CheatSheetDrawer

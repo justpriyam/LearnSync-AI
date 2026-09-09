@@ -7,11 +7,41 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Document
-from app.schemas import DocumentResponse, DocumentStatusResponse
+from app.schemas import DocumentResponse, DocumentStatusResponse, TextDocumentRequest
 from app.config import settings
-from app.services.pipeline import run_ingestion
+from app.services.pipeline import run_ingestion, run_text_ingestion
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+@router.post("/text", response_model=DocumentResponse)
+def create_text_document(
+    request: TextDocumentRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    text = request.text.strip()
+    if len(text) < 20:
+        raise HTTPException(status_code=400, detail="Job description text is too short.")
+
+    doc_id = str(uuid.uuid4())
+    upload_dir = Path(settings.UPLOAD_DIR)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    safe_filename = Path(request.filename).name or "job-description.txt"
+    file_path = upload_dir / f"{doc_id}_{safe_filename}"
+    file_path.write_text(text, encoding="utf-8")
+
+    doc = Document(
+        id=doc_id,
+        filename=safe_filename,
+        file_path=str(file_path),
+        doc_type="job_description",
+        status="pending",
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    background_tasks.add_task(run_text_ingestion, doc_id)
+    return doc
 
 @router.post("", response_model=DocumentResponse)
 async def upload_document(

@@ -19,6 +19,10 @@ class DocumentStatusResponse(BaseModel):
     chunk_count: int | None = None
     model_config = ConfigDict(from_attributes=True)
 
+class TextDocumentRequest(BaseModel):
+    filename: str = "job-description.txt"
+    text: str
+
 class QuizQuestionSchema(BaseModel):
     id: str
     question: str
@@ -77,6 +81,7 @@ class SprintGenerateRequest(BaseModel):
     syllabus_document_id: str
     pyq_document_id: str
     deadline: str  # ISO date string e.g. "2026-09-10"
+    available_hours_per_day: int = 2
 
 class SprintTopicSchema(BaseModel):
     id: str

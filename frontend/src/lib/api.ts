@@ -94,6 +94,14 @@ export async function uploadDocument(
   });
 }
 
+export async function createTextDocument(text: string): Promise<DocumentResponse> {
+  return fetchAPI<DocumentResponse>("/documents/text", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: "job-description.txt", text }),
+  });
+}
+
 export async function getDocumentStatus(
   id: string
 ): Promise<DocumentStatusResponse> {
@@ -119,7 +127,8 @@ export async function getCourse(courseId: string): Promise<CourseResponse> {
 export async function generateSprint(
   syllabusDocId: string,
   pyqDocId: string,
-  deadline: string
+  deadline: string,
+  availableHoursPerDay: number
 ): Promise<SprintPlanStatusResponse> {
   return fetchAPI<SprintPlanStatusResponse>('/sprint/generate', {
     method: 'POST',
@@ -128,6 +137,7 @@ export async function generateSprint(
       syllabus_document_id: syllabusDocId,
       pyq_document_id: pyqDocId,
       deadline: deadline,
+      available_hours_per_day: availableHoursPerDay,
     }),
   });
 }

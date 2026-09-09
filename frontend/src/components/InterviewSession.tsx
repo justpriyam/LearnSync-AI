@@ -41,6 +41,16 @@ export default function InterviewSession({
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
+    if (!currentQuestion || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const utterance = new SpeechSynthesisUtterance(currentQuestion);
+    setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    return () => window.speechSynthesis.cancel();
+  }, [currentQuestion]);
+
+  useEffect(() => {
     // Check speech support
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;

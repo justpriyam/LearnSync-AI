@@ -7,6 +7,12 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+COURSE_GENERATION_SYSTEM_PROMPT = (
+    "You are a strict course-generation assistant. Return only valid JSON. "
+    "Every generated course must contain at least 5 modules, and every module "
+    "must contain exactly 5 multiple-choice questions. Use only the supplied source material."
+)
+
 def call_gemini(prompt: str, json_mode: bool = False) -> str:
     """Call Gemini API with retry logic."""
     import google.generativeai as genai
@@ -102,7 +108,7 @@ IMPORTANT RULES:
 - Base your outline ONLY on the content in the chunks below. Do not add topics not present in the source material.
 - Each module should cover a coherent topic area from the document.
 - Assign 2 to 5 representative chunk IDs to each module.
-- Create between 3 and 8 modules depending on the document's scope.
+- Create at least 5 modules. If the source is narrow, split it into distinct subtopics without inventing facts.
 
 CHUNKS:
 {chunk_summaries}
@@ -143,7 +149,7 @@ Respond with ONLY a valid JSON array (no markdown, no explanation) in this forma
     logger.info("Pass 1: Falling back to Groq for module outline...")
     for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
         try:
-            raw_response = call_groq(prompt, json_mode=True)
+            raw_response = call_groq(prompt, json_mode=True, system_prompt=COURSE_GENERATION_SYSTEM_PROMPT)
             json_str = raw_response.strip()
             if json_str.startswith("```"):
                 lines = json_str.split("\n")
@@ -181,7 +187,7 @@ DESCRIPTION: {module_summary}
 SOURCE MATERIAL (use ONLY this — do not add outside knowledge):
 {chunk_context}
 
-Generate exactly {settings.QUESTIONS_PER_MODULE} multiple-choice questions and {settings.CHEATSHEET_BULLETS_PER_MODULE} cheat sheet bullet points.
+Generate exactly 5 multiple-choice questions and {settings.CHEATSHEET_BULLETS_PER_MODULE} cheat sheet bullet points.
 
 Respond with ONLY valid JSON in this exact format:
 {{
@@ -205,7 +211,7 @@ Respond with ONLY valid JSON in this exact format:
 
     for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
         try:
-            raw_response = call_groq(prompt, json_mode=True)
+            raw_response = call_groq(prompt, json_mode=True, system_prompt=COURSE_GENERATION_SYSTEM_PROMPT)
             json_str = raw_response.strip()
             if json_str.startswith("```"):
                 lines = json_str.split("\n")

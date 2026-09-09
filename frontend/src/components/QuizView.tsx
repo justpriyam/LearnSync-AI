@@ -5,10 +5,13 @@ import { QuizQuestion } from '../lib/types';
 
 interface QuizViewProps {
   questions: QuizQuestion[];
+  onComplete?: (score: number, total: number) => void;
+  resetKey?: string;
 }
 
-export default function QuizView({ questions }: QuizViewProps) {
+export default function QuizView({ questions, onComplete, resetKey }: QuizViewProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const completionReported = React.useRef(false);
 
   const handleSelect = (questionId: string, option: string) => {
     if (answers[questionId]) return; // prevent changing answer
@@ -17,6 +20,19 @@ export default function QuizView({ questions }: QuizViewProps) {
 
   const correctCount = questions.filter(q => answers[q.id] === q.correct_answer).length;
   const answeredCount = Object.keys(answers).length;
+  const isComplete = questions.length > 0 && answeredCount === questions.length;
+
+  React.useEffect(() => {
+    setAnswers({});
+    completionReported.current = false;
+  }, [resetKey]);
+
+  React.useEffect(() => {
+    if (isComplete && !completionReported.current) {
+      completionReported.current = true;
+      onComplete?.(correctCount, questions.length);
+    }
+  }, [correctCount, isComplete, onComplete, questions.length]);
 
   return (
     <div className="space-y-8">
@@ -76,6 +92,7 @@ export default function QuizView({ questions }: QuizViewProps) {
         <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-center font-semibold text-lg">
           Score: {correctCount} / {questions.length} 
           {answeredCount < questions.length && ` (${questions.length - answeredCount} remaining)`}
+          {isComplete && <span className="ml-3 text-green-600 dark:text-green-400">Module complete</span>}
         </div>
       )}
     </div>

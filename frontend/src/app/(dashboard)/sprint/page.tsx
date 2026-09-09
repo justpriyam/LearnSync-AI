@@ -32,7 +32,9 @@ export default function SprintPage() {
   const [syllabusDocId, setSyllabusDocId] = useState<string | null>(null);
   const [pyqDocId, setPyqDocId] = useState<string | null>(null);
   const [processingPyqId, setProcessingPyqId] = useState<string | null>(null);
+  const [processingSyllabusId, setProcessingSyllabusId] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string>("");
+  const [availableHoursPerDay, setAvailableHoursPerDay] = useState(2);
   const [generating, setGenerating] = useState(false);
 
   const readyDocuments = useMemo(
@@ -98,11 +100,22 @@ export default function SprintPage() {
     }
   };
 
+  const handleSyllabusUploadComplete = (doc: DocumentResponse) => {
+    setDocuments((prev) => [doc, ...prev]);
+    setProcessingSyllabusId(doc.id);
+  };
+
+  const handleSyllabusReady = (statusDoc: DocumentStatusResponse) => {
+    setDocuments((prev) => prev.map((doc) => doc.id === statusDoc.id ? ({ ...doc, ...statusDoc } as DocumentResponse) : doc));
+    setProcessingSyllabusId(null);
+    if (statusDoc.status === "ready") setSyllabusDocId(statusDoc.id);
+  };
+
   const handleGenerate = async () => {
     if (!syllabusDocId || !pyqDocId || !deadline) return;
     try {
       setGenerating(true);
-      const res = await generateSprint(syllabusDocId, pyqDocId, deadline);
+      const res = await generateSprint(syllabusDocId, pyqDocId, deadline, availableHoursPerDay);
       router.push(`/sprint/${res.id}`);
     } catch (err: unknown) {
       const message =
@@ -314,34 +327,26 @@ export default function SprintPage() {
                 <p>{documentsError}</p>
                 <button onClick={fetchDocs} className="mt-2 underline">Try again</button>
               </div>
-            ) : readyDocuments.length === 0 ? (
-              <div className="text-gray-500">
-                <p>No ready documents found.</p>
-                <Link
-                  href="/courses"
-                  className="text-blue-600 underline hover:text-blue-700 mt-1 inline-block"
-                >
-                  Go to Courses to upload your syllabus →
-                </Link>
-              </div>
             ) : (
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                {readyDocuments.map((doc) => (
-                  <div
-                    key={doc.id}
-                    onClick={() => setSyllabusDocId(doc.id)}
-                    className={`cursor-pointer transition-colors ${
-                      syllabusDocId === doc.id
-                        ? "ring-2 ring-blue-500"
-                        : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <DocumentCard
-                      document={doc}
-                      onGenerateCourse={() => {}}
-                    />
-                  </div>
-                ))}
+              <div className="space-y-4">
+                {!syllabusDocId && !processingSyllabusId && (
+                  <UploadZone onUploadComplete={handleSyllabusUploadComplete} />
+                )}
+                {processingSyllabusId && (
+                  <ProcessingStatus documentId={processingSyllabusId} onReady={handleSyllabusReady} />
+                )}
+                {readyDocuments.length > 0 && (
+                  <>
+                    <p className="text-sm font-medium text-gray-500">Or select an existing ready document</p>
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                      {readyDocuments.map((doc) => (
+                        <div key={doc.id} onClick={() => setSyllabusDocId(doc.id)} className={`cursor-pointer transition-colors ${syllabusDocId === doc.id ? "ring-2 ring-blue-500" : "hover:bg-gray-50"}`}>
+                          <DocumentCard document={doc} onGenerateCourse={() => {}} />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </section>
@@ -397,7 +402,7 @@ export default function SprintPage() {
                 </span>
               )}
             </h3>
-            <div className="flex items-center gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <input
                 type="date"
                 min={minDate}
@@ -410,6 +415,17 @@ export default function SprintPage() {
                   {daysRemaining} days remaining
                 </span>
               )}
+              <label className="flex flex-col gap-2 text-sm font-medium text-gray-700">
+                Available study hours per day
+                <input
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={availableHoursPerDay}
+                  onChange={(event) => setAvailableHoursPerDay(Number(event.target.value) || 1)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 font-normal"
+                />
+              </label>
             </div>
           </section>
 

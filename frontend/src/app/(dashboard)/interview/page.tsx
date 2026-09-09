@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Menu, X, ArrowRight } from "lucide-react";
-import { startInterview } from "@/lib/api";
+import { createTextDocument, startInterview } from "@/lib/api";
 import { InterviewStartResponse } from "@/lib/types";
 import UploadZone from "@/components/UploadZone";
 import ProcessingStatus from "@/components/ProcessingStatus";
@@ -67,6 +67,9 @@ export default function InterviewPage() {
   const [resumeReady, setResumeReady] = useState(false);
   const [jdDocId, setJdDocId] = useState<string | null>(null);
   const [jdReady, setJdReady] = useState(false);
+  const [jdInputMode, setJdInputMode] = useState<"pdf" | "text">("pdf");
+  const [jdText, setJdText] = useState("");
+  const [isCreatingJd, setIsCreatingJd] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [sessionInfo, setSessionInfo] =
     useState<InterviewStartResponse | null>(null);
@@ -85,6 +88,20 @@ export default function InterviewPage() {
       setError(message);
     } finally {
       setIsStarting(false);
+    }
+  };
+
+  const handleJdTextSubmit = async () => {
+    if (jdText.trim().length < 20 || isCreatingJd) return;
+    setIsCreatingJd(true);
+    setError(null);
+    try {
+      const doc = await createTextDocument(jdText);
+      setJdDocId(doc.id);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to process job description");
+    } finally {
+      setIsCreatingJd(false);
     }
   };
 
@@ -542,9 +559,20 @@ export default function InterviewPage() {
               )}
             </h3>
             {!jdDocId ? (
-              <UploadZone
-                onUploadComplete={(doc) => setJdDocId(doc.id)}
-              />
+              <>
+                <div className="mb-4 flex gap-2">
+                  <button type="button" onClick={() => setJdInputMode("pdf")} className={`rounded-lg px-4 py-2 text-sm font-medium ${jdInputMode === "pdf" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700"}`}>Upload PDF</button>
+                  <button type="button" onClick={() => setJdInputMode("text")} className={`rounded-lg px-4 py-2 text-sm font-medium ${jdInputMode === "text" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700"}`}>Paste text</button>
+                </div>
+                {jdInputMode === "pdf" ? (
+                  <UploadZone onUploadComplete={(doc) => setJdDocId(doc.id)} />
+                ) : (
+                  <div className="space-y-3">
+                    <textarea value={jdText} onChange={(event) => setJdText(event.target.value)} placeholder="Paste the job description here..." className="min-h-48 w-full rounded-lg border border-gray-300 p-4" />
+                    <button type="button" onClick={handleJdTextSubmit} disabled={jdText.trim().length < 20 || isCreatingJd} className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-40">{isCreatingJd ? "Processing..." : "Use this job description"}</button>
+                  </div>
+                )}
+              </>
             ) : !jdReady ? (
               <ProcessingStatus
                 documentId={jdDocId}

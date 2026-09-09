@@ -75,6 +75,30 @@ def run_ingestion(document_id: str) -> None:
     finally:
         db.close()
 
+def run_text_ingestion(document_id: str) -> None:
+    db = SessionLocal()
+    doc = None
+    try:
+        doc = db.query(Document).filter(Document.id == document_id).first()
+        if not doc:
+            return
+        doc.status = "processing"
+        db.commit()
+        text = Path(doc.file_path).read_text(encoding="utf-8")
+        chunks = chunk_text(text, settings.CHUNK_SIZE, settings.CHUNK_OVERLAP)
+        embed_chunks(document_id, chunks)
+        doc.status = "ready"
+        doc.chunk_count = len(chunks)
+        db.commit()
+    except Exception as exc:
+        logger.exception("Text ingestion failed for doc %s", document_id)
+        if doc:
+            doc.status = "failed"
+            doc.error_message = str(exc)
+            db.commit()
+    finally:
+        db.close()
+
 def run_generation(course_id: str) -> None:
     db = SessionLocal()
     try:
