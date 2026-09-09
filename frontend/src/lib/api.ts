@@ -10,7 +10,11 @@ import {
   InterviewReportResponse
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://learnsync-ai-jmem.onrender.com"
+    : "http://localhost:8000");
 const API_TIMEOUT_MS = 30_000;
 
 export class ApiError extends Error {
@@ -31,7 +35,10 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
     });
     if (!res.ok) {
       const error = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new ApiError(error.detail || `API error: ${res.status}`, res.status);
+      const detail = Array.isArray(error.detail)
+        ? error.detail.map((item: { msg?: string }) => item.msg || "Invalid request").join(", ")
+        : error.detail;
+      throw new ApiError(detail || `API error: ${res.status}`, res.status);
     }
     return res.json();
   } catch (error) {
@@ -75,7 +82,10 @@ export async function uploadDocument(
       if (request.status >= 200 && request.status < 300) {
         resolve(response as DocumentResponse);
       } else {
-        reject(new ApiError(response.detail || `API error: ${request.status}`, request.status));
+        const detail = Array.isArray(response.detail)
+          ? response.detail.map((item: { msg?: string }) => item.msg || "Invalid request").join(", ")
+          : response.detail;
+        reject(new ApiError(detail || `API error: ${request.status}`, request.status));
       }
     };
     request.onerror = () => reject(new ApiError("We could not reach the learning service. Check your connection and try again."));

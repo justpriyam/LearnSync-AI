@@ -19,13 +19,14 @@ async def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    if not file.filename.lower().endswith(".pdf"):
+    filename = file.filename or "upload.pdf"
+    if not filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
         
     doc_id = str(uuid.uuid4())
     upload_dir = Path(settings.UPLOAD_DIR)
     upload_dir.mkdir(parents=True, exist_ok=True)
-    file_path = upload_dir / f"{doc_id}_{file.filename}"
+    file_path = upload_dir / f"{doc_id}_{Path(filename).name}"
     
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -37,7 +38,7 @@ async def upload_document(
 
     doc = Document(
         id=doc_id,
-        filename=file.filename,
+        filename=filename,
         file_path=str(file_path),
         doc_type="textbook",
         status="pending"

@@ -23,7 +23,8 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const handleDragLeave = () => setIsDragging(false);
 
   const processFile = async (file: File) => {
-    if (file.type !== 'application/pdf') {
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
       setError('Only PDF files are accepted.');
       return;
     }
