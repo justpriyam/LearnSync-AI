@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { Menu, X, ArrowRight } from "lucide-react";
 import { startInterview } from "@/lib/api";
 import { InterviewStartResponse } from "@/lib/types";
 import UploadZone from "@/components/UploadZone";
@@ -94,6 +94,9 @@ export default function InterviewPage() {
     }
   };
 
+  /* ── mobile menu ────────────────────────────────────────────── */
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   /* ── scroll ref ─────────────────────────────────────────────── */
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToContent = () => {
@@ -103,7 +106,7 @@ export default function InterviewPage() {
   /* ── if session active, show interview (no hero) ────────────── */
   if (sessionInfo) {
     return (
-      <div className="relative min-h-[100dvh] overflow-y-auto bg-white">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
         <div className="max-w-4xl mx-auto py-8 px-6">
           <InterviewSession
             sessionId={sessionInfo.session_id}
@@ -117,7 +120,7 @@ export default function InterviewPage() {
   }
 
   return (
-    <div className="relative min-h-[100dvh] overflow-y-auto" style={{ background: "#0a0d12" }}>
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: "#0a0d12" }}>
       {/* ─────────────────────── HERO VIEWPORT ─────────────────── */}
       <div className="relative h-screen w-full overflow-hidden" style={{ background: "#0a0d12" }}>
         {/* Background video */}
@@ -130,6 +133,140 @@ export default function InterviewPage() {
           loop
           playsInline
         />
+
+        {/* ── NAVBAR (z-30) ──────────────────────────────────── */}
+        <nav
+          className="relative z-30 flex items-center justify-between px-6 py-5 md:px-12 lg:px-16"
+          style={{
+            animation: `e-settle-down .58s ${EASING_SOFT} .06s both`,
+          }}
+        >
+          {/* Brand */}
+          <Link href="/" className="flex items-center gap-3">
+            {/* Mark */}
+            <svg width={34} height={34} viewBox="0 0 34 34">
+              <circle cx={17} cy={17} r={17} fill="#9C86CE" />
+              <circle cx={17} cy={17} r={8.6} fill="#FFFFFF" />
+              <circle cx={17} cy={17} r={3.7} fill="#151519" />
+            </svg>
+            <span
+              className="text-lg font-medium tracking-tight text-white sm:text-xl"
+              style={{
+                textShadow: "0 1px 10px rgba(0,0,0,.30)",
+                letterSpacing: "-0.0154em",
+                transform: "translateY(1px)",
+              }}
+            >
+              LearnSync AI
+            </span>
+          </Link>
+
+          {/* Desktop nav links */}
+          <div
+            className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-10 md:flex"
+          >
+            {NAV_LINKS.map((link, i) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-sm text-white transition-opacity hover:opacity-70"
+                style={{
+                  textShadow: "0 1px 12px rgba(0,0,0,.32)",
+                  letterSpacing: "-0.0115em",
+                  animation: `e-settle-down .50s ${EASING_SOFT} ${0.16 + i * 0.05}s both`,
+                }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Desktop CTA */}
+          <button
+            onClick={scrollToContent}
+            className="hidden rounded-xl px-5 py-2 text-sm font-medium text-white transition-all hover:brightness-[1.16] active:translate-y-px md:block"
+            style={{
+              background: "linear-gradient(180deg, #3d3d3f 0%, #1d1d20 100%)",
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,.10), 0 2px 14px rgba(0,0,0,.28)",
+              letterSpacing: "-0.0127em",
+              fontWeight: 520,
+              animation: `e-settle-down .55s ${EASING_SOFT} .34s both`,
+            }}
+          >
+            Get Started
+          </button>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileMenuOpen((p) => !p)}
+            className="relative z-50 flex h-10 w-10 items-center justify-center rounded-xl md:hidden active:scale-90"
+            style={{
+              background: "rgba(255,255,255,.10)",
+              border: "1px solid rgba(255,255,255,.14)",
+            }}
+            aria-label="Toggle menu"
+          >
+            <Menu
+              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
+                mobileMenuOpen
+                  ? "rotate-90 scale-0 opacity-0"
+                  : "rotate-0 scale-100 opacity-100"
+              }`}
+            />
+            <X
+              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
+                mobileMenuOpen
+                  ? "rotate-0 scale-100 opacity-100"
+                  : "-rotate-90 scale-0 opacity-0"
+              }`}
+            />
+          </button>
+        </nav>
+
+        {/* ── MOBILE MENU ────────────────────────────────────── */}
+        <div
+          className={`absolute inset-x-0 top-0 z-20 backdrop-blur-xl transition-all md:hidden ${
+            mobileMenuOpen
+              ? "h-screen opacity-100"
+              : "h-0 opacity-0 pointer-events-none"
+          }`}
+          style={{
+            background: "rgba(24,24,27,.86)",
+            transitionDuration: "500ms",
+            transitionTimingFunction: "cubic-bezier(.4,0,.2,1)",
+          }}
+        >
+          <div
+            className={`flex h-full flex-col justify-center px-8 transition-all duration-500 ${
+              mobileMenuOpen
+                ? "opacity-100 translate-y-0 delay-100"
+                : "opacity-0 translate-y-8"
+            }`}
+          >
+            <div className="flex flex-col gap-6">
+              {NAV_LINKS.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-3xl font-medium text-white/90 transition-colors hover:text-white"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  scrollToContent();
+                }}
+                className="mt-6 self-start rounded-full bg-white px-8 py-3.5 text-base font-medium text-black transition-transform hover:scale-105"
+              >
+                Get Started
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* ── HERO CONTENT (z-10) ────────────────────────────── */}
         <div
