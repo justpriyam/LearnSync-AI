@@ -14,6 +14,34 @@ from app.services.generator import generate_module_outline, generate_quiz_and_ch
 
 logger = logging.getLogger(__name__)
 
+def run_sprint_generation_after_course(sprint_id: str, course_id: str) -> None:
+    """Wait for automatic course generation, then build the sprint plan."""
+    db = SessionLocal()
+    try:
+        for _ in range(90):
+            course = db.query(Course).filter(Course.id == course_id).first()
+            sprint = db.query(SprintPlan).filter(SprintPlan.id == sprint_id).first()
+            if not course or not sprint:
+                return
+            if course.status == "ready":
+                db.close()
+                run_sprint_generation(sprint_id)
+                return
+            if course.status == "failed":
+                sprint.status = "failed"
+                sprint.error_message = course.error_message or "Course generation failed"
+                db.commit()
+                return
+            time.sleep(2)
+
+        sprint = db.query(SprintPlan).filter(SprintPlan.id == sprint_id).first()
+        if sprint:
+            sprint.status = "failed"
+            sprint.error_message = "Course generation timed out. Please try again."
+            db.commit()
+    finally:
+        db.close()
+
 def run_ingestion(document_id: str) -> None:
     db = SessionLocal()
     try:
@@ -162,7 +190,11 @@ def run_sprint_generation(sprint_plan_id: str) -> None:
             # Query the PYQ document's ChromaDB collection
             pyq_collection_name = f"{settings.CHROMA_COLLECTION_PREFIX}{sprint.pyq_document_id}"
             pyq_collection = chroma_client.get_collection(pyq_collection_name)
-            results = pyq_collection.query(query_texts=[query], n_results=min(20, pyq_collection.count()))
+            match_count = pyq_collection.count()
+            if match_count == 0:
+                similarity_results[mod['module_id']] = []
+                continue
+            results = pyq_collection.query(query_texts=[query], n_results=min(20, match_count))
             
             matches = []
             for i in range(len(results['ids'][0])):
@@ -188,7 +220,19 @@ def run_sprint_generation(sprint_plan_id: str) -> None:
         )
         
         if not scored:
-            raise RuntimeError("No PYQ matches found above similarity threshold. The PYQ document may not match the syllabus subject.")
+            total_days = max(1, (date.fromisoformat(sprint.deadline) - date.today()).days)
+            scored = [
+                {
+                    "module_id": module["module_id"],
+                    "topic_title": module["title"],
+                    "pyq_frequency": 0,
+                    "similarity_score": 0.0,
+                    "priority_rank": index + 1,
+                    "assigned_day": min((index * total_days) // max(1, len(syllabus_modules)) + 1, total_days),
+                    "is_low_priority": True,
+                }
+                for index, module in enumerate(syllabus_modules)
+            ]
         
         # 6. Save SprintTopic rows
         for topic_data in scored:

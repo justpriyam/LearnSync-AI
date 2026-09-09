@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas import SprintGenerateRequest, SprintPlanStatusResponse, SprintPlanResponse
 from app.models import SprintPlan, Course, Document
-from app.services.pipeline import run_sprint_generation
+from app.services.pipeline import run_sprint_generation, run_sprint_generation_after_course, run_generation
 
 router = APIRouter(prefix="/sprint", tags=["sprint"])
 
@@ -19,9 +19,18 @@ def generate_sprint(req: SprintGenerateRequest, background_tasks: BackgroundTask
     if not pyq_doc or pyq_doc.status != 'ready':
         raise HTTPException(status_code=400, detail="PYQ document not found or not ready")
         
-    course = db.query(Course).filter(Course.document_id == req.syllabus_document_id).first()
-    if not course or course.status != 'ready':
-        raise HTTPException(status_code=400, detail="No ready course found for syllabus document")
+    course = db.query(Course).filter(Course.document_id == req.syllabus_document_id).order_by(Course.created_at.desc()).first()
+    needs_course_generation = not course or course.status == "failed"
+    if needs_course_generation:
+        course = Course(
+            id=str(uuid.uuid4()),
+            document_id=req.syllabus_document_id,
+            title=f"Course: {syl_doc.filename.rsplit('.', 1)[0]}",
+            status="pending",
+        )
+        db.add(course)
+        db.commit()
+        db.refresh(course)
         
     sprint_id = str(uuid.uuid4())
     sprint = SprintPlan(
@@ -37,7 +46,12 @@ def generate_sprint(req: SprintGenerateRequest, background_tasks: BackgroundTask
     db.commit()
     db.refresh(sprint)
     
-    background_tasks.add_task(run_sprint_generation, sprint_id)
+    if course.status == "ready":
+        background_tasks.add_task(run_sprint_generation, sprint_id)
+    else:
+        if needs_course_generation:
+            background_tasks.add_task(run_generation, course.id)
+        background_tasks.add_task(run_sprint_generation_after_course, sprint_id, course.id)
     
     return sprint
 

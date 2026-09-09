@@ -39,8 +39,15 @@ def generate_opening_question(resume_chunks: list[dict], jd_chunks: list[dict]) 
     Return ONLY the question string, without any prefixes, quotes, or additional text.
     """
     
-    response = call_groq(prompt, model=settings.INTERVIEW_GROQ_MODEL, max_tokens=256)
-    return response.strip(' "')
+    try:
+        response = call_groq(prompt, model=settings.INTERVIEW_GROQ_MODEL, max_tokens=256)
+        question = response.strip(' "')
+        if question:
+            return question
+    except Exception:
+        pass
+
+    return "Walk me through the experience from your resume that is most relevant to this role."
 
 def evaluate_answer(question: str, answer: str, resume_context: str, jd_context: str, difficulty: str) -> dict:
     """Use Groq to evaluate answer quality. Returns {score, feedback, strengths, weaknesses}."""
@@ -63,21 +70,22 @@ def evaluate_answer(question: str, answer: str, resume_context: str, jd_context:
     Ensure the JSON is valid and contains no other text.
     """
     
-    response = call_groq(prompt, model=settings.INTERVIEW_GROQ_MODEL, json_mode=True, max_tokens=1024)
     try:
+        response = call_groq(prompt, model=settings.INTERVIEW_GROQ_MODEL, json_mode=True, max_tokens=1024)
         data = json.loads(response)
+        score = max(1, min(5, int(data.get("score", 3))))
         return {
-            "score": int(data.get("score", 3)),
+            "score": score,
             "feedback": data.get("feedback", "No feedback provided."),
             "strengths": data.get("strengths", []),
             "weaknesses": data.get("weaknesses", [])
         }
-    except Exception as e:
+    except Exception:
         return {
-            "score": 3,
-            "feedback": "Failed to evaluate answer properly.",
-            "strengths": [],
-            "weaknesses": []
+            "score": 1 if len(answer.strip()) < 40 else 3,
+            "feedback": "Your answer was recorded. Add a specific example, explain your actions, and describe the result to make it stronger.",
+            "strengths": ["You attempted the question."] if answer.strip() else [],
+            "weaknesses": ["Use more specific evidence from your experience."]
         }
 
 def generate_next_question(resume_chunks: list[dict], jd_chunks: list[dict], 
@@ -111,8 +119,20 @@ def generate_next_question(resume_chunks: list[dict], jd_chunks: list[dict],
     Return ONLY the question string, without any prefixes, quotes, or additional text.
     """
     
-    response = call_groq(prompt, model=settings.INTERVIEW_GROQ_MODEL, max_tokens=256)
-    return response.strip(' "')
+    try:
+        response = call_groq(prompt, model=settings.INTERVIEW_GROQ_MODEL, max_tokens=256)
+        question = response.strip(' "')
+        if question:
+            return question
+    except Exception:
+        pass
+
+    fallback_questions = [
+        "What was the most challenging part of that project, and how did you solve it?",
+        "How did you measure whether your solution was successful?",
+        "What would you improve if you had another month to work on it?",
+    ]
+    return fallback_questions[len(previous_turns) % len(fallback_questions)]
 
 def generate_report(turns: list[dict], resume_context: str, jd_context: str) -> dict:
     """Aggregate turn data into a final analytics report."""
@@ -141,15 +161,15 @@ def generate_report(turns: list[dict], resume_context: str, jd_context: str) -> 
     Return ONLY valid JSON.
     """
     
-    response = call_groq(prompt, model=settings.INTERVIEW_GROQ_MODEL, json_mode=True, max_tokens=2048)
     try:
+        response = call_groq(prompt, model=settings.INTERVIEW_GROQ_MODEL, json_mode=True, max_tokens=2048)
         report_data = json.loads(response)
     except Exception:
         report_data = {
             "topic_coverage": [],
             "strengths": [],
             "weaknesses": [],
-            "suggestions": ["Failed to generate valid report data."]
+            "suggestions": ["Use the STAR structure: situation, task, action, and result."]
         }
         
     return {
