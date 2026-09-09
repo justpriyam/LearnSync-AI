@@ -48,11 +48,7 @@ const VIDEO_SRC =
 
 const SENSITIVITY = 0.8;
 
-const NAV_LINKS = [
-  { label: "Courses", href: "/courses" },
-  { label: "Sprint Planner", href: "/sprint" },
-  { label: "Mock Interview", href: "/interview" },
-];
+
 
 const PILL_BUTTONS = [
   "Upload a document",
@@ -111,12 +107,13 @@ export default function CoursesPage() {
 
   const handleGenerateCourse = async (docId: string) => {
     try {
+      setError(null);
       const res = await generateCourse(docId);
       router.push(`/courses/${res.id}`);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to generate course";
-      alert(message);
+      setError(message);
     }
   };
 
@@ -167,7 +164,7 @@ export default function CoursesPage() {
   };
 
   /* ── menu state ─────────────────────────────────────────────── */
-  const [menuOpen, setMenuOpen] = useState(false);
+
 
   /* ── pill visibility ────────────────────────────────────────── */
   const [pillsVisible, setPillsVisible] = useState(false);
@@ -196,18 +193,18 @@ export default function CoursesPage() {
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto"
+      className="relative min-h-[100dvh] overflow-y-auto"
       style={{ fontFamily: "var(--font-body)" }}
     >
-      {/* ── BACKGROUND VIDEO (fixed, mouse-scrub) ──────────────── */}
+      {/* ── BACKGROUND VIDEO (absolute within container) ──────── */}
       <video
         ref={videoRef}
         className="pointer-events-none"
         style={{
-          position: "fixed",
+          position: "absolute",
           inset: 0,
           width: "100%",
-          height: "100%",
+          height: "100vh",
           objectFit: "cover",
           objectPosition: "70% center",
           zIndex: 0,
@@ -219,106 +216,7 @@ export default function CoursesPage() {
         onSeeked={handleSeeked}
       />
 
-      {/* ── NAVBAR (fixed, z-10) ───────────────────────────────── */}
-      <nav
-        className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-5 py-4 sm:px-8 sm:py-5"
-        style={{ fontFamily: "var(--font-body)" }}
-      >
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3">
-          <span
-            className="text-[21px] sm:text-[26px] tracking-tight text-black"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
-            LearnSync AI®
-          </span>
-          <span
-            className="text-[25px] sm:text-[30px] text-black select-none"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            ✳︎
-          </span>
-        </Link>
 
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center text-[23px] text-black">
-          {NAV_LINKS.map((link, i) => (
-            <span key={link.label}>
-              {i > 0 && <span>, </span>}
-              <Link
-                href={link.href}
-                className="hover:opacity-60 transition-opacity"
-              >
-                {link.label}
-              </Link>
-            </span>
-          ))}
-        </div>
-
-        {/* Desktop CTA */}
-        <Link
-          href="/interview"
-          className="hidden md:block text-[23px] text-black underline underline-offset-2 hover:opacity-60 transition-opacity"
-        >
-          Get in touch
-        </Link>
-
-        {/* Mobile hamburger */}
-        <button
-          onClick={() => setMenuOpen((p) => !p)}
-          className="flex flex-col gap-[5px] md:hidden"
-          aria-label="Toggle menu"
-        >
-          <span
-            className="block w-6 h-[2px] bg-black transition-all duration-300"
-            style={{
-              transform: menuOpen
-                ? "rotate(45deg) translateY(7px)"
-                : "none",
-            }}
-          />
-          <span
-            className="block w-6 h-[2px] bg-black transition-all duration-300"
-            style={{ opacity: menuOpen ? 0 : 1 }}
-          />
-          <span
-            className="block w-6 h-[2px] bg-black transition-all duration-300"
-            style={{
-              transform: menuOpen
-                ? "rotate(-45deg) translateY(-7px)"
-                : "none",
-            }}
-          />
-        </button>
-      </nav>
-
-      {/* ── MOBILE OVERLAY (z-9) ───────────────────────────────── */}
-      <div
-        className="fixed inset-0 bg-white/95 backdrop-blur-sm flex flex-col justify-center px-8 gap-8 md:hidden transition-opacity duration-300"
-        style={{
-          zIndex: 9,
-          opacity: menuOpen ? 1 : 0,
-          pointerEvents: menuOpen ? "auto" : "none",
-        }}
-      >
-        {NAV_LINKS.map((link) => (
-          <Link
-            key={link.label}
-            href={link.href}
-            onClick={() => setMenuOpen(false)}
-            className="text-[32px] font-medium text-black hover:opacity-60 transition-opacity"
-          >
-            {link.label}
-          </Link>
-        ))}
-        <Link
-          href="/interview"
-          onClick={() => setMenuOpen(false)}
-          className="text-[32px] font-medium text-black underline underline-offset-2 hover:opacity-60 transition-opacity"
-        >
-          Get in touch
-        </Link>
-      </div>
 
       {/* ── HERO SECTION (z-1) ─────────────────────────────────── */}
       <section

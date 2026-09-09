@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Menu, X } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { listDocuments, generateSprint } from "@/lib/api";
 import { DocumentResponse, DocumentStatusResponse } from "@/lib/types";
 import UploadZone from "@/components/UploadZone";
@@ -34,6 +34,7 @@ export default function SprintPage() {
   const [processingPyqId, setProcessingPyqId] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string>("");
   const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const readyDocuments = useMemo(
     () => documents.filter((d) => d.status === "ready"),
@@ -107,14 +108,12 @@ export default function SprintPage() {
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to generate sprint";
-      alert(message);
+      setGenerateError(message);
       setGenerating(false);
     }
   };
 
   /* ── mobile menu ────────────────────────────────────────────── */
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   /* ── scroll ref ─────────────────────────────────────────────── */
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToContent = () => {
@@ -122,7 +121,7 @@ export default function SprintPage() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black">
+    <div className="relative min-h-[100dvh] overflow-y-auto bg-black">
       {/* ─────────────────────── HERO VIEWPORT ─────────────────── */}
       <div className="relative h-screen w-full overflow-hidden bg-black">
         {/* Background video */}
@@ -135,102 +134,6 @@ export default function SprintPage() {
           loop
           playsInline
         />
-
-        {/* ── NAVBAR (z-30) ──────────────────────────────────── */}
-        <nav className="relative z-30 flex items-center justify-between px-6 py-5 md:px-12 lg:px-16">
-          {/* Logo + desktop nav */}
-          <div className="flex items-center gap-8">
-            <Link
-              href="/"
-              className="text-lg font-semibold tracking-tight text-white sm:text-xl"
-            >
-              LearnSync AI
-            </Link>
-            <div className="hidden items-center gap-6 md:flex">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="text-sm text-white/80 transition-colors hover:text-white"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Desktop CTA */}
-          <button
-            onClick={scrollToContent}
-            className="hidden rounded-lg bg-white px-5 py-2 text-sm font-medium text-black transition-transform hover:scale-105 md:block"
-          >
-            Let&apos;s Plan
-          </button>
-
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMobileMenuOpen((p) => !p)}
-            className="relative z-50 flex h-10 w-10 items-center justify-center md:hidden active:scale-90"
-            aria-label="Toggle menu"
-          >
-            <Menu
-              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
-                mobileMenuOpen
-                  ? "rotate-90 scale-0 opacity-0"
-                  : "rotate-0 scale-100 opacity-100"
-              }`}
-            />
-            <X
-              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
-                mobileMenuOpen
-                  ? "rotate-0 scale-100 opacity-100"
-                  : "-rotate-90 scale-0 opacity-0"
-              }`}
-            />
-          </button>
-        </nav>
-
-        {/* ── MOBILE MENU (z-20) ─────────────────────────────── */}
-        <div
-          className={`absolute inset-x-0 top-0 z-20 bg-black/98 backdrop-blur-xl transition-all duration-500 md:hidden ${
-            mobileMenuOpen
-              ? "h-screen opacity-100"
-              : "h-0 opacity-0 pointer-events-none"
-          }`}
-          style={{
-            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-          }}
-        >
-          <div
-            className={`flex h-full flex-col justify-center px-8 transition-all duration-500 ${
-              mobileMenuOpen
-                ? "opacity-100 translate-y-0 delay-100"
-                : "opacity-0 translate-y-8"
-            }`}
-          >
-            <div className="flex flex-col gap-6">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-3xl font-medium text-white/90 transition-colors hover:text-white"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  scrollToContent();
-                }}
-                className="mt-6 self-start rounded-full bg-white px-8 py-3.5 text-base font-medium text-black transition-transform hover:scale-105"
-              >
-                Let&apos;s Plan
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* ── HERO CONTENT (z-10) ────────────────────────────── */}
         <div
@@ -424,6 +327,9 @@ export default function SprintPage() {
             >
               {generating ? "Generating Plan..." : "Generate Sprint Plan"}
             </button>
+            {generateError && (
+              <p className="text-red-500 text-center mt-4">{generateError}</p>
+            )}
           </section>
         </div>
       </div>
