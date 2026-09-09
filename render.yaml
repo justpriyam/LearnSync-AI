@@ -5,21 +5,19 @@ services:
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /docs
-    disk:
-      name: learnsync-data
-      mountPath: /var/data
-      sizeGB: 10
+    healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        value: sqlite:////var/data/learnsync.db
-      - key: UPLOAD_DIR
-        value: /var/data/uploads
-      - key: CHROMA_DATA_DIR
-        value: /var/data/chroma
-      - key: CORS_ORIGINS
         sync: false
+      - key: UPLOAD_DIR
+        value: ./uploads
+      - key: CHROMA_DATA_DIR
+        value: .chroma_data
+      - key: CORS_ORIGINS
+        value: http://localhost:3000,https://frontend-six-omega-55.vercel.app
       - key: GROQ_API_KEY
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: NEXTAUTH_SECRET
         sync: false

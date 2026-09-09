@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     DIFFICULTY_ESCALATION_THRESHOLD: int = 4  # score >= this -> harder question
     DIFFICULTY_PIVOT_THRESHOLD: int = 2  # score <= this -> foundational question
     INTERVIEW_GROQ_MODEL: str = "openai/gpt-oss-120b"  # fast model for interview turns
+    NEXTAUTH_SECRET: str = ""
+    JWT_ALGORITHM: str = "HS256"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
