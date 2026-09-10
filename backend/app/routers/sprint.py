@@ -52,6 +52,7 @@ def generate_sprint(req: SprintGenerateRequest, background_tasks: BackgroundTask
         pyq_document_id=req.pyq_document_id,
         course_id=course.id,
         deadline=req.deadline,
+        hours_per_day=req.available_hours_per_day,
         total_days=1, # Default, will be updated
         status='pending'
     )

@@ -41,7 +41,7 @@ def start_interview(req: InterviewStartRequest, db: Session = Depends(get_db)):
     resume_chunks = get_document_chunks(req.resume_document_id)
     jd_chunks = get_document_chunks(req.jd_document_id)
     
-    opening_q = "Hi! Tell me about yourself and your background"
+    opening_q = generate_opening_question(resume_chunks, jd_chunks)
     
     session = InterviewSession(
         id=str(uuid.uuid4()),

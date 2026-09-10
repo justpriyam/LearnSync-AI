@@ -274,7 +274,8 @@ def run_sprint_generation(sprint_plan_id: str) -> None:
                 is_low_priority=topic_data['is_low_priority'],
             ))
         
-        sprint.total_days = scored[0].get('total_days', 1) if scored else 1
+        from datetime import date
+        sprint.total_days = max(1, (date.fromisoformat(sprint.deadline) - date.today()).days)
         sprint.status = 'ready'
         db.commit()
     except Exception as e:
