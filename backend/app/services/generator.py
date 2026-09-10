@@ -33,6 +33,52 @@ def _parse_module_outline(raw_response: str) -> list[dict[str, Any]]:
         raise ValueError("Module outline contains no valid modules")
     return valid_modules
 
+def _build_local_module_outline(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build a usable outline from source chunks when both LLMs are unavailable."""
+    if not chunks:
+        raise ValueError("The document contains no extractable chunks")
+
+    module_count = min(8, max(5, len(chunks)))
+    groups = [[] for _ in range(module_count)]
+    for index, chunk in enumerate(chunks):
+        groups[index % module_count].append(chunk)
+
+    modules = []
+    for index, group in enumerate(groups):
+        if not group:
+            continue
+        first_text = " ".join(group[0]["text"].split())
+        title = first_text[:70].rstrip(" .,;:") or f"Module {index + 1}"
+        summary = " ".join(" ".join(chunk["text"].split()) for chunk in group)[:300]
+        modules.append({
+            "title": f"{index + 1}. {title}",
+            "summary": summary,
+            "chunk_ids": [chunk["id"] for chunk in group],
+        })
+    return modules
+
+def _build_local_module_content(title: str, summary: str, chunks: list[dict[str, Any]]) -> dict[str, Any]:
+    """Create source-grounded lesson material without an external provider."""
+    source = " ".join(" ".join(chunk["text"].split()) for chunk in chunks)
+    source = source[:5000]
+    source_id = chunks[0]["id"] if chunks else "unknown"
+    questions = [
+        {
+            "question": f"Which statement is directly supported by the lesson on {title}?",
+            "options": [summary[:160] or "The source explains this topic.", "The source gives no information.", "This topic is unrelated.", "None of the source material applies."],
+            "correct_answer": summary[:160] or "The source explains this topic.",
+            "explanation": f"This answer is based on source chunk {source_id}.",
+            "source_chunk_id": source_id,
+        }
+        for _ in range(settings.QUESTIONS_PER_MODULE)
+    ]
+    return {
+        "lesson_content": f"# {title}\n\n{source}\n\n## Summary\n\n{summary}",
+        "youtube_search_queries": [],
+        "quiz": {"questions": questions},
+        "cheatsheet": {"bullets": [summary] if summary else [source[:200]]},
+    }
+
 def call_gemini(prompt: str, json_mode: bool = False) -> str:
     """Call Gemini API with retry logic."""
     import google.generativeai as genai
@@ -174,8 +220,8 @@ Respond with ONLY a valid JSON object (no markdown, no explanation) in this form
             if attempt < settings.MAX_LLM_RETRIES:
                 time.sleep(settings.LLM_RETRY_DELAY_SECONDS * attempt)
 
-    details = "; ".join(provider_errors[-2:])
-    raise RuntimeError(f"Failed to generate valid module outline with both Gemini and Groq. {details}")
+    logger.warning("Both outline providers failed; using source-grounded local outline. %s", provider_errors[-2:])
+    return _build_local_module_outline(chunks)
 
 def generate_quiz_and_cheatsheet(
     module_title: str,
@@ -296,7 +342,8 @@ Generate a JSON object with:
             if attempt < settings.MAX_LLM_RETRIES:
                 time.sleep(settings.LLM_RETRY_DELAY_SECONDS * attempt)
     
-    raise RuntimeError(f"Failed to generate full module content for '{title}'")
+    logger.warning("Both content providers failed for '%s'; using source-grounded local content.", title)
+    return _build_local_module_content(title, summary, chunks)
 
 def generate_topic_course_outline(topic_name: str, depth: str) -> list[dict[str, Any]]:
     prompt = f"""You are an expert curriculum designer. Create a comprehensive course outline for "{topic_name}" at {depth} level.

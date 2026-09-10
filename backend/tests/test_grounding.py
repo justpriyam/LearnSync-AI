@@ -1,7 +1,7 @@
 import pytest
 import re
 from app.schemas import QuizQuestionSchema, ModuleSchema
-from app.services.generator import _parse_module_outline
+from app.services.generator import _build_local_module_content, _build_local_module_outline, _parse_module_outline
 
 def test_quiz_questions_have_valid_source_chunk_ids():
     """Every quiz question must have a non-empty source_chunk_id."""
@@ -54,3 +54,16 @@ def test_module_outline_parser_keeps_gemini_array_compatibility():
     response = '[{"title": "Foundations", "summary": "Core ideas", "chunk_ids": ["chunk_0001"]}]'
     modules = _parse_module_outline(response)
     assert modules[0]["chunk_ids"] == ["chunk_0001"]
+
+def test_local_course_fallback_stays_grounded():
+    chunks = [
+        {"id": "chunk_0001", "text": "Neural networks learn patterns from training data."},
+        {"id": "chunk_0002", "text": "Optimization updates model parameters."},
+    ]
+    modules = _build_local_module_outline(chunks)
+    assert modules
+    assert all(module["chunk_ids"] for module in modules)
+
+    content = _build_local_module_content(modules[0]["title"], modules[0]["summary"], chunks[:1])
+    assert len(content["quiz"]["questions"]) == 5
+    assert content["quiz"]["questions"][0]["source_chunk_id"] == "chunk_0001"
