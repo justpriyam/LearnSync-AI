@@ -21,19 +21,19 @@ export default function InterviewReport({ report }: { report: InterviewReportRes
       <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border dark:border-gray-800 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-2xl font-bold mb-2">Mock Interview Report</h1>
-          <p className="text-gray-700">Session ID: <span className="font-mono text-sm">{report.session_id}</span></p>
+          <p className="text-gray-500">Session ID: <span className="font-mono text-sm">{report.session_id}</span></p>
         </div>
         <div className="flex gap-4">
           <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div className="text-sm text-gray-700 uppercase tracking-wider font-semibold mb-1">Total Turns</div>
+            <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-1">Total Turns</div>
             <div className="text-2xl font-bold">{report.total_turns}</div>
           </div>
           <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div className="text-sm text-gray-700 uppercase tracking-wider font-semibold mb-1">Avg Score</div>
-            <div className="text-2xl font-bold">{report.average_score.toFixed(1)}<span className="text-gray-700 text-lg">/10</span></div>
+            <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-1">Avg Score</div>
+            <div className="text-2xl font-bold">{report.average_score.toFixed(1)}<span className="text-gray-400 text-lg">/10</span></div>
           </div>
           <div className={`text-center p-4 rounded-lg ${rating.bg} dark:bg-opacity-20`}>
-            <div className="text-sm text-gray-700 uppercase tracking-wider font-semibold mb-1">Rating</div>
+            <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-1">Rating</div>
             <div className={`text-2xl font-bold ${rating.color}`}>{rating.label}</div>
           </div>
         </div>
@@ -87,7 +87,7 @@ export default function InterviewReport({ report }: { report: InterviewReportRes
                   Q{i+1}: {level}
                 </div>
                 {i < report.difficulty_progression.length - 1 && (
-                  <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 )}
               </React.Fragment>
             );
@@ -103,8 +103,8 @@ export default function InterviewReport({ report }: { report: InterviewReportRes
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Topic</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Score</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Topic</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
@@ -151,31 +151,31 @@ export default function InterviewReport({ report }: { report: InterviewReportRes
                 className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <span className="font-bold text-gray-700 w-8">Q{turn.turn_number}</span>
+                  <span className="font-bold text-gray-500 w-8">Q{turn.turn_number}</span>
                   <span className="font-medium text-left line-clamp-1">{turn.question}</span>
                 </div>
                 <div className="flex items-center gap-4 flex-shrink-0">
                   <span className={`font-bold px-2 py-1 rounded text-sm ${turn.score >= 8 ? 'bg-green-100 text-green-700' : turn.score >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
                     {turn.score}/10
                   </span>
-                  <svg className={`w-5 h-5 text-gray-700 transform transition-transform ${expandedTurn === turn.turn_number ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  <svg className={`w-5 h-5 text-gray-500 transform transition-transform ${expandedTurn === turn.turn_number ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </div>
               </button>
               
               {expandedTurn === turn.turn_number && (
                 <div className="p-6 space-y-4 bg-white dark:bg-gray-900">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Question</h4>
+                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Question</h4>
                     <p className="font-medium text-lg">{turn.question}</p>
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Your Answer</h4>
+                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Your Answer</h4>
                     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-gray-700 dark:text-gray-300">
-                      {turn.answer || <span className="italic text-gray-700">No answer provided.</span>}
+                      {turn.answer || <span className="italic text-gray-400">No answer provided.</span>}
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-2">Feedback</h4>
+                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Feedback</h4>
                     <p className="text-gray-700 dark:text-gray-300">{turn.feedback}</p>
                   </div>
                 </div>

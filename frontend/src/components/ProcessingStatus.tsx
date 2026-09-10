@@ -40,7 +40,7 @@ export default function ProcessingStatus({ documentId, onReady }: ProcessingStat
     return <div className="p-4 text-red-600">{error}</div>;
   }
 
-  if (!status) return <div className="text-gray-700 p-4">Checking document status...</div>;
+  if (!status) return <div className="text-gray-500 p-4">Checking document status...</div>;
 
   let text = '';
   let color = 'text-gray-600';
@@ -73,7 +73,7 @@ export default function ProcessingStatus({ documentId, onReady }: ProcessingStat
       )}
       <span className={`font-medium ${color}`}>{text}</span>
       {status.chunk_count !== null && (
-        <span className="text-sm text-gray-700 ml-auto">{status.chunk_count} chunks</span>
+        <span className="text-sm text-gray-500 ml-auto">{status.chunk_count} chunks</span>
       )}
     </div>
   );

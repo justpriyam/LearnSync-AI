@@ -54,23 +54,8 @@ export default function SprintViewPage({
 
   if (!sprint) {
     return (
-      <div className="p-8 text-center text-gray-700 animate-pulse">
+      <div className="p-8 text-center text-gray-500 animate-pulse">
         Loading sprint data...
-      </div>
-    );
-  }
-
-  if (sprint.status === "failed") {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-6">
-        <div className="w-16 h-16 border-4 border-red-200 border-t-red-600 rounded-full"></div>
-        <h2 className="text-2xl font-bold text-red-600">Sprint Generation Failed</h2>
-        <p className="text-gray-700 max-w-md text-center">
-          {sprint.error_message || "We encountered an error while trying to generate this sprint. Please try again."}
-        </p>
-        <button onClick={() => window.history.back()} className="px-6 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800">
-          Go Back
-        </button>
       </div>
     );
   }
@@ -80,12 +65,15 @@ export default function SprintViewPage({
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-6">
         <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
         <h2 className="text-2xl font-bold">Generating Sprint Plan</h2>
-        <p className="text-gray-700 max-w-md text-center">
+        <p className="text-gray-500 max-w-md text-center">
           LearnSync AI is analyzing your syllabus and PYQs to build an optimized study plan. This might take a minute or two.
         </p>
         <p className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded">
           Status: {sprint.status}
         </p>
+        {sprint.error_message && (
+          <p className="text-red-500 text-sm">{sprint.error_message}</p>
+        )}
       </div>
     );
   }

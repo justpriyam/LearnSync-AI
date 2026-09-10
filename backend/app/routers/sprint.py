@@ -2,24 +2,11 @@ import uuid
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.schemas import SprintGenerateRequest, SprintPlanStatusResponse, SprintPlanResponse, TopicSprintRequest
+from app.schemas import SprintGenerateRequest, SprintPlanStatusResponse, SprintPlanResponse
 from app.models import SprintPlan, Course, Document
-from app.services.pipeline import run_sprint_generation, run_sprint_generation_after_course, run_generation, run_topic_sprint_generation
+from app.services.pipeline import run_sprint_generation, run_sprint_generation_after_course, run_generation
 
 router = APIRouter(prefix="/sprint", tags=["sprint"])
-
-@router.get("", response_model=list[SprintPlanResponse])
-def list_sprints(db: Session = Depends(get_db)):
-    return db.query(SprintPlan).all()
-
-@router.post("/from-topic")
-def generate_sprint_from_topic(req: TopicSprintRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    sprint_id = str(uuid.uuid4())
-    sprint = SprintPlan(id=sprint_id, topic_name=req.topic_name, deadline=req.deadline, hours_per_day=req.hours_per_day, total_days=0, status='pending')
-    db.add(sprint)
-    db.commit()
-    background_tasks.add_task(run_topic_sprint_generation, sprint_id)
-    return {"id": sprint_id, "status": "pending"}
 
 @router.post("/generate", response_model=SprintPlanStatusResponse)
 def generate_sprint(req: SprintGenerateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):

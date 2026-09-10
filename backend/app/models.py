@@ -17,8 +17,7 @@ class Document(Base):
 class Course(Base):
     __tablename__ = 'courses'
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    document_id: Mapped[str | None] = mapped_column(String, ForeignKey('documents.id'), nullable=True)
-    topic_name: Mapped[str | None] = mapped_column(String, nullable=True)  # For topic-based courses
+    document_id: Mapped[str] = mapped_column(String, ForeignKey('documents.id'))
     title: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String)
     error_message: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -32,8 +31,6 @@ class Module(Base):
     course_id: Mapped[str] = mapped_column(String, ForeignKey('courses.id'))
     title: Mapped[str] = mapped_column(String)
     summary: Mapped[str] = mapped_column(String)
-    lesson_content: Mapped[str | None] = mapped_column(Text, nullable=True)  # Rich lesson text
-    youtube_links: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array of {title, url}
     order_index: Mapped[int] = mapped_column(Integer)
     source_chunk_ids: Mapped[str] = mapped_column(Text) # JSON string
     
@@ -66,11 +63,9 @@ class CheatSheetBullet(Base):
 class SprintPlan(Base):
     __tablename__ = 'sprint_plans'
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    syllabus_document_id: Mapped[str | None] = mapped_column(String, ForeignKey('documents.id'), nullable=True)
-    pyq_document_id: Mapped[str | None] = mapped_column(String, ForeignKey('documents.id'), nullable=True)
-    course_id: Mapped[str | None] = mapped_column(String, ForeignKey('courses.id'), nullable=True)
-    topic_name: Mapped[str | None] = mapped_column(String, nullable=True)  # For topic-based sprints
-    hours_per_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    syllabus_document_id: Mapped[str] = mapped_column(String, ForeignKey('documents.id'))
+    pyq_document_id: Mapped[str] = mapped_column(String, ForeignKey('documents.id'))
+    course_id: Mapped[str] = mapped_column(String, ForeignKey('courses.id'))
     deadline: Mapped[str] = mapped_column(String)  # ISO date string
     total_days: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String)  # 'pending', 'generating', 'ready', 'failed'
@@ -101,7 +96,6 @@ class InterviewSession(Base):
     status: Mapped[str] = mapped_column(String)  # 'active', 'completed'
     current_difficulty: Mapped[str] = mapped_column(String, default='intermediate')  # 'foundational', 'intermediate', 'advanced'
     current_question: Mapped[str | None] = mapped_column(Text, nullable=True)
-    report_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # Cached report JSON
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     
     turns: Mapped[list["InterviewTurn"]] = relationship("InterviewTurn", back_populates="session", cascade="all, delete-orphan")

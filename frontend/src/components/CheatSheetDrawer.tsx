@@ -52,7 +52,7 @@ export default function CheatSheetDrawer({ bullets, isOpen, onClose }: CheatShee
                 </li>
               ))}
               {bullets.length === 0 && (
-                <p className="text-gray-700 text-center italic mt-10">No cheat sheet items available for this module.</p>
+                <p className="text-gray-500 text-center italic mt-10">No cheat sheet items available for this module.</p>
               )}
             </ul>
           </div>

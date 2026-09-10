@@ -37,8 +37,6 @@ export interface Module {
   source_chunk_ids: string[];
   quiz_questions: QuizQuestion[];
   cheatsheet_bullets: CheatSheetBullet[];
-  lesson_content?: string | null;
-  youtube_links?: string | null;
 }
 
 export interface CourseResponse {

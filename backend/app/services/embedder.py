@@ -12,9 +12,9 @@ def get_or_create_collection(document_id: str) -> chromadb.Collection:
     collection_name = f"{settings.CHROMA_COLLECTION_PREFIX}{document_id}"
     try:
         client.delete_collection(collection_name)
-    except ValueError:
+    except Exception:
         pass
-    collection = client.create_collection(
+    collection = client.get_or_create_collection(
         name=collection_name,
         metadata={"hnsw:space": "cosine"},
     )
@@ -32,16 +32,26 @@ def embed_chunks(document_id: str, chunks: list[dict[str, Any]]) -> chromadb.Col
 
 def retrieve_chunks(document_id: str, query: str, top_k: int) -> list[dict[str, Any]]:
     collection_name = f"{settings.CHROMA_COLLECTION_PREFIX}{document_id}"
-    collection = client.get_collection(collection_name)
-    results = collection.query(query_texts=[query], n_results=min(top_k, collection.count()))
+    try:
+        collection = client.get_collection(collection_name)
+    except Exception:
+        logger.warning(f"Collection {collection_name} not found when retrieving chunks")
+        return []
+
+    count = collection.count()
+    if count == 0:
+        return []
+
+    results = collection.query(query_texts=[query], n_results=min(top_k, count))
 
     retrieved = []
-    for i in range(len(results["ids"][0])):
-        retrieved.append(
-            {
-                "id": results["ids"][0][i],
-                "text": results["documents"][0][i],
-                "distance": results["distances"][0][i] if results["distances"] else None,
-            }
-        )
+    if results and results.get("ids") and len(results["ids"]) > 0:
+        for i in range(len(results["ids"][0])):
+            retrieved.append(
+                {
+                    "id": results["ids"][0][i],
+                    "text": results["documents"][0][i],
+                    "distance": results["distances"][0][i] if results.get("distances") else None,
+                }
+            )
     return retrieved

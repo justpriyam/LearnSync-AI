@@ -15,7 +15,7 @@ const API_BASE =
   (process.env.NODE_ENV === "production"
     ? "https://learnsync-ai-jmem.onrender.com"
     : "http://localhost:8000");
-const API_TIMEOUT_MS = 90_000;
+const API_TIMEOUT_MS = 30_000;
 
 export class ApiError extends Error {
   constructor(message: string, public readonly status?: number) {
@@ -175,20 +175,4 @@ export async function getInterviewReport(
   sessionId: string
 ): Promise<InterviewReportResponse> {
   return fetchAPI<InterviewReportResponse>(`/interview/${sessionId}/report`);
-}
-
-export async function generateCourseFromTopic(topicName: string, depth: string = 'intermediate'): Promise<{id: string; status: string}> {
-  return fetchAPI('/courses/from-topic', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ topic_name: topicName, depth }),
-  });
-}
-
-export async function generateSprintFromTopic(topicName: string, deadline: string, hoursPerDay: number = 4): Promise<{id: string; status: string}> {
-  return fetchAPI('/sprint/from-topic', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ topic_name: topicName, deadline, hours_per_day: hoursPerDay }),
-  });
 }

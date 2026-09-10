@@ -67,8 +67,8 @@ export default function HeroPage() {
         <nav className="flex w-full items-center justify-between px-5 py-5 sm:px-8 sm:py-6 lg:px-12">
           {/* logo */}
           <Link href="/" className="flex items-center gap-2">
-            <LogoIcon className="text-white" />
-            <span className="text-lg font-semibold text-white">
+            <LogoIcon className="text-[#010101] lg:text-white" />
+            <span className="text-lg font-semibold text-[#010101] lg:text-white">
               LearnSync AI
             </span>
           </Link>
@@ -105,14 +105,14 @@ export default function HeroPage() {
             aria-label="Toggle menu"
           >
             <Menu
-              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
+              className={`absolute h-5 w-5 text-[#010101] lg:text-white transition-all duration-300 ${
                 menuOpen
                   ? "rotate-90 scale-0 opacity-0"
                   : "rotate-0 scale-100 opacity-100"
               }`}
             />
             <X
-              className={`absolute h-5 w-5 text-white transition-all duration-300 ${
+              className={`absolute h-5 w-5 text-[#010101] lg:text-white transition-all duration-300 ${
                 menuOpen
                   ? "rotate-0 scale-100 opacity-100"
                   : "-rotate-90 scale-0 opacity-0"
@@ -189,11 +189,11 @@ export default function HeroPage() {
         <div className="mt-auto flex flex-col gap-6 px-5 pb-8 sm:gap-8 sm:px-8 sm:pb-12 lg:flex-row lg:items-end lg:justify-between lg:px-12 lg:pb-16">
           {/* left: headline + CTA */}
           <div className="max-w-xl">
-            <h1 className="text-3xl font-semibold leading-[1.1] tracking-tight text-white sm:text-4xl lg:text-[3.5rem] lg:text-white">
+            <h1 className="text-3xl font-semibold leading-[1.1] tracking-tight text-[#010101] sm:text-4xl lg:text-[3.5rem] lg:text-white">
               Master any subject with AI‑powered learning
             </h1>
 
-            <p className="mt-4 text-sm leading-relaxed text-white/80 sm:text-base max-w-md">
+            <p className="mt-4 text-sm leading-relaxed text-[#010101]/70 sm:text-base lg:text-white/70 max-w-md">
               Upload your docs, generate courses, plan exam sprints, and ace interviews — all powered by AI.
             </p>
 
@@ -223,16 +223,16 @@ export default function HeroPage() {
                 <div className="flex h-6 w-6 items-center justify-center rounded bg-black">
                   <BookOpen className="h-3.5 w-3.5 text-white" />
                 </div>
-                <span className="text-sm font-semibold text-white">
+                <span className="text-sm font-semibold text-[#010101] lg:text-white">
                   Course Engine
                 </span>
               </div>
-              <p className="text-sm leading-relaxed text-white/80">
+              <p className="text-sm leading-relaxed text-[#010101]/80 lg:text-white/80">
                 Upload any PDF — syllabi, textbooks, notes — and get structured courses with quizzes &amp; cheat sheets in minutes.
               </p>
               <Link
                 href="/courses"
-                className="mt-4 text-sm font-medium text-white underline underline-offset-2 hover:opacity-70 transition-opacity lg:text-white sm:mt-5"
+                className="mt-4 text-sm font-medium text-[#010101] underline underline-offset-2 hover:opacity-70 transition-opacity lg:text-white sm:mt-5"
               >
                 Try it now →
               </Link>
@@ -244,23 +244,23 @@ export default function HeroPage() {
                 <div className="flex h-6 w-6 items-center justify-center rounded bg-black">
                   <Zap className="h-3.5 w-3.5 text-white" />
                 </div>
-                <span className="text-sm font-semibold text-white">
+                <span className="text-sm font-semibold text-[#010101] lg:text-white">
                   Sprint &amp; Interview
                 </span>
               </div>
-              <p className="text-sm leading-relaxed text-white/80">
+              <p className="text-sm leading-relaxed text-[#010101]/80 lg:text-white/80">
                 Generate exam‑optimized study plans from your syllabus &amp; PYQs, then practice with an AI mock interviewer.
               </p>
               <div className="mt-4 flex gap-4 sm:mt-5">
                 <Link
                   href="/sprint"
-                  className="text-sm font-medium text-white underline underline-offset-2 hover:opacity-70 transition-opacity lg:text-white"
+                  className="text-sm font-medium text-[#010101] underline underline-offset-2 hover:opacity-70 transition-opacity lg:text-white"
                 >
                   Sprint →
                 </Link>
                 <Link
                   href="/interview"
-                  className="text-sm font-medium text-white underline underline-offset-2 hover:opacity-70 transition-opacity lg:text-white"
+                  className="text-sm font-medium text-[#010101] underline underline-offset-2 hover:opacity-70 transition-opacity lg:text-white"
                 >
                   Interview →
                 </Link>
