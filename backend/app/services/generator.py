@@ -13,26 +13,6 @@ COURSE_GENERATION_SYSTEM_PROMPT = (
     "must contain exactly 5 multiple-choice questions. Use only the supplied source material."
 )
 
-def _parse_module_outline(raw_response: str) -> list[dict[str, Any]]:
-    """Parse outline JSON from either provider's object or array response."""
-    json_str = raw_response.strip()
-    if json_str.startswith("```"):
-        lines = json_str.split("\n")
-        json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-
-    payload = json.loads(json_str)
-    modules = payload.get("modules") if isinstance(payload, dict) else payload
-    if not isinstance(modules, list):
-        raise ValueError("Module outline must contain a modules array")
-
-    valid_modules = [
-        module for module in modules
-        if isinstance(module, dict) and module.get("title") and module.get("summary")
-    ]
-    if not valid_modules:
-        raise ValueError("Module outline contains no valid modules")
-    return valid_modules
-
 def call_gemini(prompt: str, json_mode: bool = False) -> str:
     """Call Gemini API with retry logic."""
     import google.generativeai as genai
@@ -117,7 +97,6 @@ def call_groq(
 
 def generate_module_outline(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Pass 1 (Gemini with Groq fallback): Analyze all chunks and propose a module structure."""
-    provider_errors: list[str] = []
     chunk_summaries = "\n".join(
         f"[{c['id']}]: {c['text'][:200]}..." if len(c["text"]) > 200 else f"[{c['id']}]: {c['text']}"
         for c in chunks
@@ -134,27 +113,34 @@ IMPORTANT RULES:
 CHUNKS:
 {chunk_summaries}
 
-Respond with ONLY a valid JSON object (no markdown, no explanation) in this format:
-{{
-    "modules": [
-        {{
-            "title": "Module title",
-            "summary": "1-2 sentence description of what this module covers",
-            "chunk_ids": ["chunk_0000", "chunk_0001"]
-        }}
-    ]
-}}"""
+Respond with ONLY a valid JSON array (no markdown, no explanation) in this format:
+[
+  {{
+    "title": "Module title",
+    "summary": "1-2 sentence description of what this module covers",
+    "chunk_ids": ["chunk_0000", "chunk_0001"]
+  }}
+]"""
 
     logger.info("Pass 1: Generating module outline via Gemini...")
     for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
         try:
             raw_response = call_gemini(prompt, json_mode=True)
-            modules = _parse_module_outline(raw_response)
-            if modules:
+            json_str = raw_response.strip()
+            if json_str.startswith("```"):
+                lines = json_str.split("\n")
+                json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            else:
+                start_idx = json_str.find("[")
+                end_idx = json_str.rfind("]")
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = json_str[start_idx : end_idx + 1]
+
+            modules = json.loads(json_str)
+            if isinstance(modules, list) and len(modules) > 0:
                 logger.info(f"Pass 1 complete: {len(modules)} modules proposed via Gemini")
                 return modules
         except Exception as e:
-            provider_errors.append(f"Gemini: {e}")
             logger.warning(f"Pass 1 Gemini attempt {attempt}/{settings.MAX_LLM_RETRIES} failed: {e}")
             if attempt < settings.MAX_LLM_RETRIES:
                 time.sleep(settings.LLM_RETRY_DELAY_SECONDS * attempt)
@@ -164,18 +150,26 @@ Respond with ONLY a valid JSON object (no markdown, no explanation) in this form
     for attempt in range(1, settings.MAX_LLM_RETRIES + 1):
         try:
             raw_response = call_groq(prompt, json_mode=True, system_prompt=COURSE_GENERATION_SYSTEM_PROMPT)
-            modules = _parse_module_outline(raw_response)
-            if modules:
+            json_str = raw_response.strip()
+            if json_str.startswith("```"):
+                lines = json_str.split("\n")
+                json_str = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            else:
+                start_idx = json_str.find("[")
+                end_idx = json_str.rfind("]")
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = json_str[start_idx : end_idx + 1]
+
+            modules = json.loads(json_str)
+            if isinstance(modules, list) and len(modules) > 0:
                 logger.info(f"Pass 1 complete: {len(modules)} modules proposed via Groq fallback")
                 return modules
         except Exception as e:
-            provider_errors.append(f"Groq: {e}")
             logger.warning(f"Pass 1 Groq fallback attempt {attempt}/{settings.MAX_LLM_RETRIES} failed: {e}")
             if attempt < settings.MAX_LLM_RETRIES:
                 time.sleep(settings.LLM_RETRY_DELAY_SECONDS * attempt)
 
-    details = "; ".join(provider_errors[-2:])
-    raise RuntimeError(f"Failed to generate valid module outline with both Gemini and Groq. {details}")
+    raise RuntimeError("Failed to generate valid module outline with both Gemini and Groq")
 
 def generate_quiz_and_cheatsheet(
     module_title: str,

@@ -1,7 +1,6 @@
 import pytest
 import re
 from app.schemas import QuizQuestionSchema, ModuleSchema
-from app.services.generator import _parse_module_outline
 
 def test_quiz_questions_have_valid_source_chunk_ids():
     """Every quiz question must have a non-empty source_chunk_id."""
@@ -44,13 +43,3 @@ def test_module_source_chunk_ids_are_valid_json():
     m = ModuleSchema(**data)
     assert isinstance(m.source_chunk_ids, list)
     assert len(m.source_chunk_ids) == 2
-
-def test_module_outline_parser_accepts_groq_object_response():
-    response = '{"modules": [{"title": "Foundations", "summary": "Core ideas", "chunk_ids": ["chunk_0001"]}]}'
-    modules = _parse_module_outline(response)
-    assert modules[0]["title"] == "Foundations"
-
-def test_module_outline_parser_keeps_gemini_array_compatibility():
-    response = '[{"title": "Foundations", "summary": "Core ideas", "chunk_ids": ["chunk_0001"]}]'
-    modules = _parse_module_outline(response)
-    assert modules[0]["chunk_ids"] == ["chunk_0001"]
