@@ -49,7 +49,7 @@ async def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    filename = Path(file.filename or "upload.pdf").name
+    filename = file.filename or "upload.pdf"
     if not filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
         
@@ -58,19 +58,13 @@ async def upload_document(
     upload_dir.mkdir(parents=True, exist_ok=True)
     file_path = upload_dir / f"{doc_id}_{Path(filename).name}"
     
-    try:
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        size_mb = file_path.stat().st_size / (1024 * 1024)
-        if size_mb > settings.MAX_UPLOAD_SIZE_MB:
-            raise HTTPException(status_code=400, detail=f"File exceeds {settings.MAX_UPLOAD_SIZE_MB}MB")
-    except HTTPException:
-        file_path.unlink(missing_ok=True)
-        raise
-    except OSError as exc:
-        file_path.unlink(missing_ok=True)
-        raise HTTPException(status_code=500, detail=f"Could not store uploaded PDF: {exc}") from exc
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    size_mb = file_path.stat().st_size / (1024 * 1024)
+    if size_mb > settings.MAX_UPLOAD_SIZE_MB:
+        file_path.unlink()
+        raise HTTPException(status_code=400, detail=f"File exceeds {settings.MAX_UPLOAD_SIZE_MB}MB")
 
     doc = Document(
         id=doc_id,

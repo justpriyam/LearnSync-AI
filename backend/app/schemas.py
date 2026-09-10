@@ -109,9 +109,9 @@ class SprintTopicSchema(BaseModel):
 
 class SprintPlanResponse(BaseModel):
     id: str
-    syllabus_document_id: str | None = None
-    pyq_document_id: str | None = None
-    course_id: str | None = None
+    syllabus_document_id: str
+    pyq_document_id: str
+    course_id: str
     deadline: str
     total_days: int
     status: str

@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import { createTextDocument, getDocumentStatus, startInterview } from "@/lib/api";
+import { createTextDocument, startInterview } from "@/lib/api";
 import { InterviewStartResponse } from "@/lib/types";
 import UploadZone from "@/components/UploadZone";
 import ProcessingStatus from "@/components/ProcessingStatus";
@@ -23,8 +23,6 @@ export default function InterviewPage() {
   // interview state
   const [resumeDocId, setResumeDocId] = useState<string | null>(null);
   const [jdDocId, setJdDocId] = useState<string | null>(null);
-  const [resumeReady, setResumeReady] = useState(false);
-  const [jdReady, setJdReady] = useState(false);
   const [jdInputMode, setJdInputMode] = useState<"pdf" | "text">("pdf");
   const [jdText, setJdText] = useState("");
   
@@ -38,7 +36,7 @@ export default function InterviewPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleStart = async () => {
-    if (!resumeDocId || !jdDocId || !resumeReady || !jdReady) return;
+    if (!resumeDocId || !jdDocId) return;
     
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       const unlockUtterance = new SpeechSynthesisUtterance(" ");
@@ -66,48 +64,10 @@ export default function InterviewPage() {
     try {
       const doc = await createTextDocument(jdText);
       setJdDocId(doc.id);
-      await waitForDocument(doc.id, setJdReady);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to process job description");
     } finally {
       setIsCreatingJd(false);
-    }
-  };
-
-  const waitForDocument = async (documentId: string, setReady: (ready: boolean) => void) => {
-    for (let attempt = 0; attempt < 90; attempt += 1) {
-      const status = await getDocumentStatus(documentId);
-      if (status.status === "ready") {
-        setReady(true);
-        return;
-      }
-      if (status.status === "failed") {
-        throw new Error(status.error_message || "Document processing failed");
-      }
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    }
-    throw new Error("Document processing timed out. Please try again.");
-  };
-
-  const handleResumeUpload = async (doc: { id: string }) => {
-    setResumeDocId(doc.id);
-    setResumeReady(false);
-    try {
-      await waitForDocument(doc.id, setResumeReady);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to process resume");
-      setResumeDocId(null);
-    }
-  };
-
-  const handleJdUpload = async (doc: { id: string }) => {
-    setJdDocId(doc.id);
-    setJdReady(false);
-    try {
-      await waitForDocument(doc.id, setJdReady);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to process job description");
-      setJdDocId(null);
     }
   };
 
@@ -189,9 +149,9 @@ export default function InterviewPage() {
             {resumeDocId && <span className="text-green-600 text-sm font-semibold">✓ Ready</span>}
           </h2>
           {!resumeDocId ? (
-            <UploadZone onUploadComplete={handleResumeUpload} />
+            <UploadZone onUploadComplete={(doc) => setResumeDocId(doc.id)} />
           ) : (
-            <p className="text-gray-700">Resume {resumeReady ? "ready" : "processing..."}. ID: <code className="bg-white px-1 py-0.5 rounded border border-gray-200 text-sm">{resumeDocId}</code></p>
+            <p className="text-gray-700">Resume attached. ID: <code className="bg-white px-1 py-0.5 rounded border border-gray-200 text-sm">{resumeDocId}</code></p>
           )}
         </section>
 
@@ -223,7 +183,7 @@ export default function InterviewPage() {
 
               <div className="p-6 md:p-8">
                 {jdInputMode === 'pdf' && (
-                  <UploadZone onUploadComplete={handleJdUpload} />
+                  <UploadZone onUploadComplete={(doc) => setJdDocId(doc.id)} />
                 )}
 
                 {jdInputMode === 'text' && (
@@ -255,7 +215,7 @@ export default function InterviewPage() {
         {/* START BUTTON */}
         <button
           onClick={handleStart}
-          disabled={!resumeDocId || !jdDocId || !resumeReady || !jdReady || isStarting}
+          disabled={!resumeDocId || !jdDocId || isStarting}
           className="w-full py-5 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-xl font-bold rounded-xl shadow-lg transition-colors flex justify-center items-center gap-3 mt-8"
         >
           🎤 {isStarting ? "Preparing Session..." : "Start Mock Interview"}

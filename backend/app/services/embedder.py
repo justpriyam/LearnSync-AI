@@ -10,9 +10,11 @@ client = chromadb.PersistentClient(path=settings.CHROMA_DATA_DIR)
 
 def get_or_create_collection(document_id: str) -> chromadb.Collection:
     collection_name = f"{settings.CHROMA_COLLECTION_PREFIX}{document_id}"
-    # Each document gets a fresh id, so reusing an existing collection is safe
-    # and avoids a delete/create gap during background ingestion.
-    collection = client.get_or_create_collection(
+    try:
+        client.delete_collection(collection_name)
+    except ValueError:
+        pass
+    collection = client.create_collection(
         name=collection_name,
         metadata={"hnsw:space": "cosine"},
     )
@@ -31,10 +33,7 @@ def embed_chunks(document_id: str, chunks: list[dict[str, Any]]) -> chromadb.Col
 def retrieve_chunks(document_id: str, query: str, top_k: int) -> list[dict[str, Any]]:
     collection_name = f"{settings.CHROMA_COLLECTION_PREFIX}{document_id}"
     collection = client.get_collection(collection_name)
-    count = collection.count()
-    if count == 0:
-        return []
-    results = collection.query(query_texts=[query], n_results=min(top_k, count))
+    results = collection.query(query_texts=[query], n_results=min(top_k, collection.count()))
 
     retrieved = []
     for i in range(len(results["ids"][0])):
